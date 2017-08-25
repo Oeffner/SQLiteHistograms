@@ -68,6 +68,8 @@
 ** encourages the query planner to order joins such that the bounds of the
 ** series are well-defined.
 */
+
+
 #include "sqlite3ext.h"
 #include "sqlite3.h"
 SQLITE_EXTENSION_INIT1
@@ -77,13 +79,16 @@ SQLITE_EXTENSION_INIT1
 
 #ifndef SQLITE_OMIT_VIRTUALTABLE
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-/* series_cursor is a subclass of sqlite3_vtab_cursor which will
+/* histo_cursor is a subclass of sqlite3_vtab_cursor which will
 ** serve as the underlying representation of a cursor that scans
 ** over rows of the result
 */
-typedef struct series_cursor series_cursor;
-struct series_cursor {
+typedef struct histo_cursor histo_cursor;
+struct histo_cursor {
   sqlite3_vtab_cursor base;  /* Base class - must be first */
   int isDesc;                /* True to count down rather than up */
   sqlite3_int64 iRowid;      /* The rowid */
@@ -95,19 +100,19 @@ struct series_cursor {
 };
 
 /*
-** The seriesConnect() method is invoked to create a new
-** series_vtab that describes the generate_series virtual table.
+** The histoConnect() method is invoked to create a new
+** histo_vtab that describes the generate_histo virtual table.
 **
-** Think of this routine as the constructor for series_vtab objects.
+** Think of this routine as the constructor for histo_vtab objects.
 **
 ** All this routine needs to do is:
 **
-**    (1) Allocate the series_vtab object and initialize all fields.
+**    (1) Allocate the histo_vtab object and initialize all fields.
 **
 **    (2) Tell SQLite (via the sqlite3_declare_vtab() interface) what the
-**        result set of queries against generate_series will look like.
+**        result set of queries against generate_histo will look like.
 */
-static int seriesConnect(
+static int histoConnect(
   sqlite3 *db,
   void *pAux,
   int argc, const char *const*argv,
@@ -128,7 +133,7 @@ static int seriesConnect(
 //     "CREATE TABLE x(value,start hidden,stop hidden,step hidden)");
       "CREATE TABLE x(u REAL, v REAL, start hidden, stop hidden, step hidden)");
   if( rc==SQLITE_OK ){
-    pNew = *ppVtab = sqlite3_malloc( sizeof(*pNew) );
+    pNew = *ppVtab = (sqlite3_vtab *)sqlite3_malloc( sizeof(*pNew) );
     if( pNew==0 ) return SQLITE_NOMEM;
     memset(pNew, 0, sizeof(*pNew));
   }
@@ -136,19 +141,20 @@ static int seriesConnect(
 }
 
 /*
-** This method is the destructor for series_cursor objects.
+** This method is the destructor for histo_cursor objects.
 */
-static int seriesDisconnect(sqlite3_vtab *pVtab){
+static int histoDisconnect(sqlite3_vtab *pVtab){
   sqlite3_free(pVtab);
   return SQLITE_OK;
 }
 
 /*
-** Constructor for a new series_cursor object.
+** Constructor for a new histo_cursor object.
 */
-static int seriesOpen(sqlite3_vtab *p, sqlite3_vtab_cursor **ppCursor){
-  series_cursor *pCur;
-  pCur = sqlite3_malloc( sizeof(*pCur) );
+static int histoOpen(sqlite3_vtab *p, sqlite3_vtab_cursor **ppCursor){
+  histo_cursor *pCur;
+  //pCur = (histo_cursor *)sqlite3_malloc( sizeof(*pCur) );
+  pCur = sqlite3_malloc(sizeof(*pCur));
   if( pCur==0 ) return SQLITE_NOMEM;
   memset(pCur, 0, sizeof(*pCur));
   *ppCursor = &pCur->base;
@@ -156,19 +162,19 @@ static int seriesOpen(sqlite3_vtab *p, sqlite3_vtab_cursor **ppCursor){
 }
 
 /*
-** Destructor for a series_cursor.
+** Destructor for a histo_cursor.
 */
-static int seriesClose(sqlite3_vtab_cursor *cur){
+static int histoClose(sqlite3_vtab_cursor *cur){
   sqlite3_free(cur);
   return SQLITE_OK;
 }
 
 
 /*
-** Advance a series_cursor to its next row of output.
+** Advance a histo_cursor to its next row of output.
 */
-static int seriesNext(sqlite3_vtab_cursor *cur){
-  series_cursor *pCur = (series_cursor*)cur;
+static int histoNext(sqlite3_vtab_cursor *cur){
+  histo_cursor *pCur = (histo_cursor*)cur;
   pCur->iu += pCur->iStep;
   pCur->iv = pCur->iu * pCur->iu;
   pCur->iRowid++;
@@ -176,15 +182,15 @@ static int seriesNext(sqlite3_vtab_cursor *cur){
 }
 
 /*
-** Return values of columns for the row at which the series_cursor
+** Return values of columns for the row at which the histo_cursor
 ** is currently pointing.
 */
-static int seriesColumn(
+static int histoColumn(
   sqlite3_vtab_cursor *cur,   /* The cursor */
   sqlite3_context *ctx,       /* First argument to sqlite3_result_...() */
   int i                       /* Which column to return */
 ){
-  series_cursor *pCur = (series_cursor*)cur;
+  histo_cursor *pCur = (histo_cursor*)cur;
   sqlite3_int64 x = 0;
   switch( i ){
     case SERIES_COLUMN_START:  x = pCur->mnValue; break;
@@ -201,8 +207,8 @@ static int seriesColumn(
 ** Return the rowid for the current row.  In this implementation, the
 ** rowid is the same as the output value.
 */
-static int seriesRowid(sqlite3_vtab_cursor *cur, sqlite_int64 *pRowid){
-  series_cursor *pCur = (series_cursor*)cur;
+static int histoRowid(sqlite3_vtab_cursor *cur, sqlite_int64 *pRowid){
+  histo_cursor *pCur = (histo_cursor*)cur;
   *pRowid = pCur->iRowid;
   return SQLITE_OK;
 }
@@ -212,8 +218,8 @@ static int seriesRowid(sqlite3_vtab_cursor *cur, sqlite_int64 *pRowid){
 ** row of output.
 */
 
-static int seriesEof(sqlite3_vtab_cursor *cur) {
-  series_cursor *pCur = (series_cursor*)cur;
+static int histoEof(sqlite3_vtab_cursor *cur) {
+  histo_cursor *pCur = (histo_cursor*)cur;
   if (pCur->isDesc) {
     return pCur->iu < pCur->mnValue;
   }
@@ -231,12 +237,12 @@ static int seriesEof(sqlite3_vtab_cursor *cur) {
 #endif
 
 /*
-** This method is called to "rewind" the series_cursor object back
+** This method is called to "rewind" the histo_cursor object back
 ** to the first row of output.  This method is always called at least
-** once prior to any call to seriesColumn() or seriesRowid() or 
-** seriesEof().
+** once prior to any call to histoColumn() or histoRowid() or 
+** histoEof().
 **
-** The query plan selected by seriesBestIndex is passed in the idxNum
+** The query plan selected by histoBestIndex is passed in the idxNum
 ** parameter.  (idxStr is not used in this implementation.)  idxNum
 ** is a bitmask showing which constraints are available:
 **
@@ -244,19 +250,19 @@ static int seriesEof(sqlite3_vtab_cursor *cur) {
 **    2:    stop=VALUE
 **    4:    step=VALUE
 **
-** Also, if bit 8 is set, that means that the series should be output
+** Also, if bit 8 is set, that means that the histo should be output
 ** in descending order rather than in ascending order.
 **
 ** This routine should initialize the cursor and position it so that it
 ** is pointing at the first row, or pointing off the end of the table
-** (so that seriesEof() will return true) if the table is empty.
+** (so that histoEof() will return true) if the table is empty.
 */
-static int seriesFilter(
+static int histoFilter(
   sqlite3_vtab_cursor *pVtabCursor, 
   int idxNum, const char *idxStr,
   int argc, sqlite3_value **argv
 ){
-  series_cursor *pCur = (series_cursor *)pVtabCursor;
+  histo_cursor *pCur = (histo_cursor *)pVtabCursor;
   int i = 0;
   if( idxNum & 1 ){
     pCur->mnValue = sqlite3_value_int64(argv[i++]);
@@ -291,7 +297,7 @@ static int seriesFilter(
 
 /*
 ** SQLite will invoke this method one or more times while planning a query
-** that uses the generate_series virtual table.  This routine needs to create
+** that uses the generate_histo virtual table.  This routine needs to create
 ** a query plan for each invocation and compute an estimated cost for that
 ** plan.
 **
@@ -305,7 +311,7 @@ static int seriesFilter(
 **  (4)  step = $value   -- constraint exists
 **  (8)  output in descending order
 */
-static int seriesBestIndex(
+static int histoBestIndex(
   sqlite3_vtab *tab,
   sqlite3_index_info *pIdxInfo
 ){
@@ -314,9 +320,10 @@ static int seriesBestIndex(
   int startIdx = -1;     /* Index of the start= constraint, or -1 if none */
   int stopIdx = -1;      /* Index of the stop= constraint, or -1 if none */
   int stepIdx = -1;      /* Index of the step= constraint, or -1 if none */
-  int nArg = 0;          /* Number of arguments that seriesFilter() expects */
+  int nArg = 0;          /* Number of arguments that histoFilter() expects */
 
   const struct sqlite3_index_constraint *pConstraint;
+  //sqlite3_index_info::sqlite3_index_constraint *pConstraint;
   pConstraint = pIdxInfo->aConstraint;
   for(i=0; i<pIdxInfo->nConstraint; i++, pConstraint++){
     if( pConstraint->usable==0 ) continue;
@@ -370,22 +377,22 @@ static int seriesBestIndex(
 
 /*
 ** This following structure defines all the methods for the 
-** generate_series virtual table.
+** generate_histo virtual table.
 */
-static sqlite3_module seriesModule = {
+static sqlite3_module histoModule = {
   0,                         /* iVersion */
   0,                         /* xCreate */
-  seriesConnect,             /* xConnect */
-  seriesBestIndex,           /* xBestIndex */
-  seriesDisconnect,          /* xDisconnect */
+  histoConnect,             /* xConnect */
+  histoBestIndex,           /* xBestIndex */
+  histoDisconnect,          /* xDisconnect */
   0,                         /* xDestroy */
-  seriesOpen,                /* xOpen - open a cursor */
-  seriesClose,               /* xClose - close a cursor */
-  seriesFilter,              /* xFilter - configure scan constraints */
-  seriesNext,                /* xNext - advance a cursor */
-  seriesEof,                 /* xEof - check for end of scan */
-  seriesColumn,              /* xColumn - read data */
-  seriesRowid,               /* xRowid - read data */
+  histoOpen,                /* xOpen - open a cursor */
+  histoClose,               /* xClose - close a cursor */
+  histoFilter,              /* xFilter - configure scan constraints */
+  histoNext,                /* xNext - advance a cursor */
+  histoEof,                 /* xEof - check for end of scan */
+  histoColumn,              /* xColumn - read data */
+  histoRowid,               /* xRowid - read data */
   0,                         /* xUpdate */
   0,                         /* xBegin */
   0,                         /* xSync */
@@ -398,180 +405,13 @@ static sqlite3_module seriesModule = {
 #endif /* SQLITE_OMIT_VIRTUALTABLE */
 
 
-/*
-** An instance of the following structure holds the context of a
-** sum() or avg() aggregate computation.
-*/
-
-#ifndef UINT32_TYPE
-# ifdef HAVE_UINT32_T
-#  define UINT32_TYPE uint32_t
-# else
-#  define UINT32_TYPE unsigned int
-# endif
-#endif
-#ifndef UINT16_TYPE
-# ifdef HAVE_UINT16_T
-#  define UINT16_TYPE uint16_t
-# else
-#  define UINT16_TYPE unsigned short int
-# endif
-#endif
-#ifndef INT16_TYPE
-# ifdef HAVE_INT16_T
-#  define INT16_TYPE int16_t
-# else
-#  define INT16_TYPE short int
-# endif
-#endif
-#ifndef UINT8_TYPE
-# ifdef HAVE_UINT8_T
-#  define UINT8_TYPE uint8_t
-# else
-#  define UINT8_TYPE unsigned char
-# endif
-#endif
-#ifndef INT8_TYPE
-# ifdef HAVE_INT8_T
-#  define INT8_TYPE int8_t
-# else
-#  define INT8_TYPE signed char
-# endif
-#endif
-#ifndef LONGDOUBLE_TYPE
-# define LONGDOUBLE_TYPE long double
-#endif
-
-#define UNUSED_PARAMETER(x) (void)(x)
-
-/*
-** Routines used to compute the sum, average, and total.
-**
-** The SUM() function follows the (broken) SQL standard which means
-** that it returns NULL if it sums over no inputs.  TOTAL returns
-** 0.0 in that case.  In addition, TOTAL always returns a float where
-** SUM might return an integer if it never encounters a floating point
-** value.  TOTAL never fails, but SUM might through an exception if
-** it overflows an integer.
-*/
-typedef struct MySumCtx MySumCtx;
-struct MySumCtx {
-  double rSum;               /* Floating point sum */
-  sqlite_int64 iSum;         /* Integer sum */
-  sqlite_int64 cnt;          /* Number of elements summed */
-  UINT8_TYPE overflow;      /* True if integer overflow seen */
-  UINT8_TYPE approx;        /* True if non-integer value was input to the sum */
-};
-
-static void mysumStep(sqlite3_context *context, int argc, sqlite3_value **argv) {
-  MySumCtx *p;
-  int type;
-  assert(argc == 1);
-  UNUSED_PARAMETER(argc);
-  p = sqlite3_aggregate_context(context, sizeof(*p));
-  type = sqlite3_value_numeric_type(argv[0]);
-  if (p && type != SQLITE_NULL) {
-    p->cnt++;
-    if (type == SQLITE_INTEGER) {
-      sqlite_int64 v = sqlite3_value_int64(argv[0]);
-      p->rSum += v;
-      if ((p->approx | p->overflow) == 0 && (&p->iSum + v)) {
-        p->overflow = 1;
-      }
-    }
-    else {
-      p->rSum += sqlite3_value_double(argv[0]);
-      p->approx = 1;
-    }
-  }
-}
-static void mysumFinalize(sqlite3_context *context) {
-  MySumCtx *p;
-  p = sqlite3_aggregate_context(context, 0);
-  if (p && p->cnt>0) {
-    if (p->overflow) {
-      sqlite3_result_error(context, "integer overflow", -1);
-    }
-    else if (p->approx) {
-      sqlite3_result_double(context, p->rSum);
-    }
-    else {
-      sqlite3_result_int64(context, p->iSum);
-    }
-  }
-}
-
-
-
-
-
-
-
-typedef struct HistoCtx HistoCtx;
-struct HistoCtx {
-  double rSum;               /* Floating point sum */
-  sqlite_int64 iSum;         /* Integer sum */
-  sqlite_int64 cnt;          /* Number of elements summed */
-  UINT8_TYPE overflow;      /* True if integer overflow seen */
-  UINT8_TYPE approx;        /* True if non-integer value was input to the sum */
-};
-
-static void HistoStep(sqlite3_context *context, int argc, sqlite3_value **argv) {
-  HistoCtx *p;
-  int type;
-  assert(argc == 2);
-  //UNUSED_PARAMETER(argc);
-  printf(argv[1]);
-  p = sqlite3_aggregate_context(context, sizeof(*p));
-  type = sqlite3_value_numeric_type(argv[0]);
-  if (p && type != SQLITE_NULL) {
-    p->cnt++;
-    if (type == SQLITE_INTEGER) {
-      sqlite_int64 v = sqlite3_value_int64(argv[0]);
-      p->rSum += v;
-      if ((p->approx | p->overflow) == 0 && (&p->iSum + v)) {
-        p->overflow = 1;
-      }
-    }
-    else {
-      p->rSum += sqlite3_value_double(argv[0]);
-      p->approx = 1;
-    }
-  }
-}
-
-static void HistoFinalize(sqlite3_context *context) {
-  HistoCtx *p;
-  p = sqlite3_aggregate_context(context, 0);
-  if (p && p->cnt>0) {
-    /*
-    if (p->overflow) {
-      sqlite3_result_error(context, "integer overflow", -1);
-    }
-    else if (p->approx) {
-      sqlite3_result_double(context, p->rSum);
-    }
-    else {
-      sqlite3_result_int64(context, p->iSum);
-    }
-    */
-    sqlite3_result_text(context, "wibble waffle", 14, 0);
-
-  }
-}
-
-
-
-
-
-
 
 
 
 #ifdef _WIN32
 __declspec(dllexport)
 #endif
-int sqlite3_testvtables_init( // always use lower case
+int sqlite3_histo_init( // always use lower case
   sqlite3 *db, 
   char **pzErrMsg, 
   const sqlite3_api_routines *pApi
@@ -583,15 +423,16 @@ int sqlite3_testvtables_init( // always use lower case
   if( sqlite3_libversion_number()<3008012 )
   {
     *pzErrMsg = sqlite3_mprintf(
-        "testVtables() requires SQLite 3.8.12 or later");
+        "histo() requires SQLite 3.8.12 or later");
     return SQLITE_ERROR;
   }
-  rc = sqlite3_create_module(db, "testVtables", &seriesModule, 0);
-
-  sqlite3_create_function(db, "mysum", 1, SQLITE_UTF8, db, 0, &mysumStep, &mysumFinalize);
-
-  sqlite3_create_function(db, "histo", 2, SQLITE_UTF8, db, 0, &HistoStep, &HistoFinalize);
+  rc = sqlite3_create_module(db, "histo", &histoModule, 0);
 
 #endif
   return rc;
 }
+
+
+#ifdef __cplusplus
+}
+#endif
