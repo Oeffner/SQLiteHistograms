@@ -110,7 +110,7 @@ std::vector<histobin> Myhistogram(std::vector<double> col, int bins, double minb
     histo[i].binval = middle;
     histo[i].count = 0;
 
-    for (unsigned j = 0; i < col.size(); j++)
+    for (unsigned j = 0; j < col.size(); j++)
     {
       if (col[j] > lower && col[j] < upper)
         histo[i].count++;
