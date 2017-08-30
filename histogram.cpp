@@ -32,9 +32,8 @@ SQLITE_EXTENSION_INIT1
 
 std::vector<double> GetColumn(sqlite3* db, std::string sqlxprs)
 {
-  // Access pCur->colid in pCur->tblname and create a histogram here. 
-  // Then assign pCur->bin and pCur->count to the histogram.
-  char *zErrMsg;
+	// get column from sql expression and return it 
+	char *zErrMsg;
   char **result;
   int rc;
   int nrow, ncol;
@@ -49,21 +48,21 @@ std::vector<double> GetColumn(sqlite3* db, std::string sqlxprs)
     &zErrMsg          /* Error msg written here */
     );
 
-  std::vector<double> bins;
-  bins.clear();
+  std::vector<double> column;
+	column.clear();
   if (rc == SQLITE_OK) {
     for (int i = 0; i < ncol*nrow; ++i)
     {
       if (result[ncol + i])
       {
         std::string val(result[ncol + i]);
-        bins.push_back(atof(val.c_str()));
+				column.push_back(atof(val.c_str()));
       }
     }
   }
   sqlite3_free_table(result);
 
-  return bins;
+  return column;
 }
 
 
@@ -79,7 +78,7 @@ struct histobin
 };
 
 
-std::vector<histobin> Myhistogram(std::vector<double> col, int bins, double minbin, double maxbin)
+std::vector<histobin> CalcHistogram(std::vector<double> col, int bins, double minbin, double maxbin)
 {
   std::vector<histobin> histo;
 
@@ -97,7 +96,7 @@ std::vector<histobin> Myhistogram(std::vector<double> col, int bins, double minb
 
     for (unsigned j = 0; j < col.size(); j++)
     {
-      if (col[j] > lower && col[j] < upper)
+      if (col[j] >= lower && col[j] < upper)
         histo[i].count++;
     }
   }
@@ -387,7 +386,7 @@ static int histoFilter(
   s_exe += pCur->colid + " FROM " + pCur->tblname;
   mybins.clear();
   mybins = GetColumn(thisdb, s_exe);
-  myhistogram1 = Myhistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin);
+  myhistogram1 = CalcHistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin);
   myhistogram2.resize(pCur->nbins);
   pCur->totalcount = myhistogram1[0].count;
   pCur->ratio = 0.0;
@@ -399,14 +398,14 @@ static int histoFilter(
       + " WHERE " + pCur->discrcolid + " >= " + pCur->discrval;
     mybins.clear();
     mybins = GetColumn(thisdb, s_exe);
-    myhistogram1 = Myhistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin);
+    myhistogram1 = CalcHistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin);
     
     // get second histogram where values are below discrval
     s_exe = "SELECT " + pCur->colid + " FROM " + pCur->tblname
       + " WHERE " + pCur->discrcolid + " < " + pCur->discrval;
     mybins.clear();
     mybins = GetColumn(thisdb, s_exe);
-    myhistogram2 = Myhistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin);
+    myhistogram2 = CalcHistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin);
 
     pCur->bin = myhistogram1[0].binval;
     pCur->count1 = myhistogram1[0].count;
