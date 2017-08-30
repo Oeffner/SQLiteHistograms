@@ -1,77 +1,24 @@
 /*
-** 2015-08-18
-**
-** The author disclaims copyright to this source code.  In place of
-** a legal notice, here is a blessing:
-**
-**    May you do good and not evil.
-**    May you find forgiveness for yourself and forgive others.
-**    May you share freely, never taking more than you give.
-**
-*************************************************************************
-**
-** This file demonstrates how to create a table-valued-function using
-** a virtual table.  This demo implements the generate_series() function
-** which gives similar results to the eponymous function in PostgreSQL.
-** Examples:
-**
-**      SELECT * FROM generate_series(0,100,5);
-**
-** The query above returns integers from 0 through 100 counting by steps
-** of 5.
-**
-**      SELECT * FROM generate_series(0,100);
-**
-** Integers from 0 through 100 with a step size of 1.
-**
-**      SELECT * FROM generate_series(20) LIMIT 10;
-**
-** Integers 20 through 29.
-**
-** HOW IT WORKS
-**
-** The generate_series "function" is really a virtual table with the
-** following schema:
-**
-**     CREATE TABLE generate_series(
-**       value,
-**       start HIDDEN,
-**       stop HIDDEN,
-**       step HIDDEN
-**     );
-**
-** Function arguments in queries against this virtual table are translated
-** into equality constraints against successive hidden columns.  In other
-** words, the following pairs of queries are equivalent to each other:
-**
-**    SELECT * FROM generate_series(0,100,5);
-**    SELECT * FROM generate_series WHERE start=0 AND stop=100 AND step=5;
-**
-**    SELECT * FROM generate_series(0,100);
-**    SELECT * FROM generate_series WHERE start=0 AND stop=100;
-**
-**    SELECT * FROM generate_series(20) LIMIT 10;
-**    SELECT * FROM generate_series WHERE start=20 LIMIT 10;
-**
-** The generate_series virtual table implementation leaves the xCreate method
-** set to NULL.  This means that it is not possible to do a CREATE VIRTUAL
-** TABLE command with "generate_series" as the USING argument.  Instead, there
-** is a single generate_series virtual table that is always available without
-** having to be created first.
-**
-** The xBestIndex method looks for equality constraints against the hidden
-** start, stop, and step columns, and if present, it uses those constraints
-** to bound the sequence of generated values.  If the equality constraints
-** are missing, it uses 0 for start, 4294967295 for stop, and 1 for step.
-** xBestIndex returns a small cost when both start and stop are available,
-** and a very large cost if either start or stop are unavailable.  This
-** encourages the query planner to order joins such that the bounds of the
-** series are well-defined.
-*/
 
+histogram.cpp, Robert Oeffner 2017
+SQLite extension for calculating histogram of column values as well as calculating ratios of 
+two histograms deduced from the same table.
+
+
+Compiles with command line:
+
+On Windows with MSVC++:
+cl /Gd ..\MySqliteExtentions\histogram.cpp /I sqlite3 /DDLL /EHsc /LD /link /export:sqlite3_histogram_init /out:histogram.sqlext
+
+On Linux with g++:
+g++ -fPIC -lm -shared histogram.cpp -o libhistogram.so
+
+*/
 
 #include <iostream>
 #include <vector>
+#include <cstdlib>
+
 
 #include "sqlite3ext.h"
 SQLITE_EXTENSION_INIT1
@@ -80,6 +27,44 @@ SQLITE_EXTENSION_INIT1
 
 #ifndef SQLITE_OMIT_VIRTUALTABLE
 
+
+
+
+std::vector<double> GetColumn(sqlite3* db, std::string sqlxprs)
+{
+  // Access pCur->colid in pCur->tblname and create a histogram here. 
+  // Then assign pCur->bin and pCur->count to the histogram.
+  char *zErrMsg;
+  char **result;
+  int rc;
+  int nrow, ncol;
+  int db_open;
+
+  rc = sqlite3_get_table(
+    db,              /* An open database */
+    sqlxprs.c_str(),       /* SQL to be executed */
+    &result,       /* Result written to a char *[]  that this points to */
+    &nrow,             /* Number of result rows written here */
+    &ncol,          /* Number of result columns written here */
+    &zErrMsg          /* Error msg written here */
+    );
+
+  std::vector<double> bins;
+  bins.clear();
+  if (rc == SQLITE_OK) {
+    for (int i = 0; i < ncol*nrow; ++i)
+    {
+      if (result[ncol + i])
+      {
+        std::string val(result[ncol + i]);
+        bins.push_back(atof(val.c_str()));
+      }
+    }
+  }
+  sqlite3_free_table(result);
+
+  return bins;
+}
 
 
 struct histobin
@@ -130,9 +115,8 @@ extern "C" {
 
 
 sqlite3 *thisdb = NULL;
-
-std::vector<double> mybins;
-std::vector<histobin> myhistogram;
+std::vector<histobin> myhistogram1;
+std::vector<histobin> myhistogram2;
 
 /* histo_cursor is a subclass of sqlite3_vtab_cursor which will
 ** serve as the underlying representation of a cursor that scans
@@ -143,19 +127,18 @@ struct histo_cursor {
   sqlite3_vtab_cursor base;  /* Base class - must be first */
   int isDesc;                /* True to count down rather than up */
   sqlite3_int64 iRowid;      /* The rowid */
-  double        iu;          /* Current value ("value") */
-  double        iv;          /* the result, some function of iu */
-  sqlite3_int64 mnValue;     /* Mimimum value ("start") */
-  sqlite3_int64 mxValue;     /* Maximum value ("stop") */
-  sqlite3_int64 iStep;       /* Increment ("step") */
-
   double         bin;
-  sqlite3_int64  count;
-  std::string     tblname;
-  std::string     colid;
-  int            bins;
+  sqlite3_int64  count1;
+  sqlite3_int64  count2;
+  double         ratio;
+  sqlite3_int64  totalcount;
+  std::string    tblname;
+  std::string    colid;
+  int            nbins;
   double         minbin;
   double         maxbin;
+  std::string    discrcolid;
+  std::string    discrval;
 };
 
 /*
@@ -178,25 +161,29 @@ static int histoConnect(
   sqlite3_vtab **ppVtab,
   char **pzErr
 ){
-  std::cout << "in histoConnect" << std::endl;
+  //std::cout << "in histoConnect" << std::endl;
 
   sqlite3_vtab *pNew;
   int rc;
 
 /* Column numbers */
 
-#define HISTO_BIN 0
-#define HISTO_COUNT 1
-#define HISTO_TBLNAME 2
-#define HISTO_COLID 3
-#define HISTO_BINS 4
-#define HISTO_MINBIN 5
-#define HISTO_MAXBIN 6
+#define HISTO_BIN        0
+#define HISTO_COUNT1     1
+#define HISTO_COUNT2     2
+#define HISTO_RATIO      3
+#define HISTO_TOTALCOUNT 4
+#define HISTO_TBLNAME    5
+#define HISTO_COLID      6
+#define HISTO_NBINS      7
+#define HISTO_MINBIN     8
+#define HISTO_MAXBIN     9
+#define HISTO_DISCRCOLID 10
+#define HISTO_DISCRVAL   11
 
   rc = sqlite3_declare_vtab(db,
-//      "CREATE TABLE x(u REAL, v REAL, start hidden, stop hidden, step hidden)");
-//   "CREATE TABLE x(bin REAL, count INTEGER, tblname hidden, colid hidden, width hidden)");
-  "CREATE TABLE x(bin REAL, count INTEGER, tblname hidden, colid hidden, bins hidden, minbin hidden, maxbin hidden)");
+  "CREATE TABLE x(bin REAL, count1 INTEGER, count2 INTEGER, ratio REAL, totalcount INTEGER, " \
+  "tblname hidden, colid hidden, nbins hidden, minbin hidden, maxbin hidden, discrcolid hidden, discrval hidden)");
   if( rc==SQLITE_OK ){
     pNew = *ppVtab = (sqlite3_vtab *)sqlite3_malloc( sizeof(*pNew) );
     if( pNew==0 ) return SQLITE_NOMEM;
@@ -218,7 +205,7 @@ static int histoDisconnect(sqlite3_vtab *pVtab){
 ** Constructor for a new histo_cursor object.
 */
 static int histoOpen(sqlite3_vtab *p, sqlite3_vtab_cursor **ppCursor){
-  std::cout << "in histoOpen" << std::endl;
+  //std::cout << "in histoOpen" << std::endl;
   histo_cursor *pCur;
   pCur = (histo_cursor *)sqlite3_malloc( sizeof(*pCur) );
   //pCur = sqlite3_malloc(sizeof(*pCur));
@@ -246,8 +233,14 @@ static int histoNext(sqlite3_vtab_cursor *cur){
   pCur->iRowid++;
   int i = pCur->iRowid - 1;
 
-  pCur->bin = myhistogram[i].binval; 
-  pCur->count = myhistogram[i].count;
+  pCur->bin = myhistogram1[i].binval; 
+  pCur->count1 = myhistogram1[i].count;
+  pCur->count2 = myhistogram2[i].count;
+  pCur->totalcount = myhistogram1[i].count + myhistogram2[i].count;
+  if (pCur->totalcount > 0)
+    pCur->ratio = ((double) pCur->count1 ) / pCur->totalcount;
+  else
+    pCur->ratio = 0.0;
 
   return SQLITE_OK;
 }
@@ -267,13 +260,18 @@ static int histoColumn(
   double d = -42.24;
   switch( i ){
     case HISTO_BIN:     d = pCur->bin; sqlite3_result_double(ctx, d); break;
-    case HISTO_COUNT:   x = pCur->count; sqlite3_result_int64(ctx, x); break;
+    case HISTO_COUNT1:   x = pCur->count1; sqlite3_result_int64(ctx, x); break;
+    case HISTO_COUNT2:   x = pCur->count2; sqlite3_result_int64(ctx, x); break;
+    case HISTO_RATIO:   d = pCur->ratio; sqlite3_result_double(ctx, d); break;
+    case HISTO_TOTALCOUNT:  x = pCur->totalcount; sqlite3_result_int64(ctx, x); break;
     case HISTO_TBLNAME: c = pCur->tblname; sqlite3_result_text(ctx, c.c_str(), -1, NULL);  break;
     case HISTO_COLID:   c = pCur->colid; sqlite3_result_text(ctx, c.c_str(), -1, NULL); break;
-    case HISTO_BINS:    d = pCur->bins; sqlite3_result_double(ctx, x); break;
+    case HISTO_NBINS:    x = pCur->nbins; sqlite3_result_double(ctx, x); break;
     case HISTO_MINBIN:  d = pCur->minbin; sqlite3_result_double(ctx, d); break;
     case HISTO_MAXBIN:  d = pCur->minbin; sqlite3_result_double(ctx, d); break;
-    default:            x = pCur->count; sqlite3_result_int64(ctx, x); break;
+    case HISTO_DISCRCOLID:  c = pCur->discrcolid; sqlite3_result_text(ctx, c.c_str(), -1, NULL);  break;
+    case HISTO_DISCRVAL:  c = pCur->discrval; sqlite3_result_text(ctx, c.c_str(), -1, NULL);  break;
+    default:            x = pCur->count1; sqlite3_result_int64(ctx, x); break;
   }
   return SQLITE_OK;
 }
@@ -300,7 +298,7 @@ static int histoEof(sqlite3_vtab_cursor *cur) {
     return pCur->iRowid < 1;
   }
   else {
-    return pCur->iRowid > myhistogram.size();
+    return pCur->iRowid > myhistogram1.size();
   }
 }
 
@@ -338,85 +336,91 @@ static int histoFilter(
   int idxNum, const char *idxStr,
   int argc, sqlite3_value **argv
 ){
-  std::cout << "in histoFilter" << std::endl;
-
+  //std::cout << "in histoFilter" << std::endl;
   histo_cursor *pCur = (histo_cursor *)pVtabCursor;
   int i = 0;
   
-  if( idxNum & 1 ){
+  if( idxNum >= HISTO_TBLNAME){
     pCur->tblname = (const char*)sqlite3_value_text(argv[i++]);
     //pCur->tblname = sqlite3_value_int64(argv[i++]);
   }else{
     pCur->tblname = "";
   }
-  if( idxNum & 2 ){
+  if( idxNum >= HISTO_COLID){
     pCur->colid = (const char*)sqlite3_value_text(argv[i++]);
   }else{
     pCur->colid = "";
   }
-  if (idxNum & 4) {
-    pCur->bins = sqlite3_value_double(argv[i++]);
+  if (idxNum >= HISTO_NBINS) {
+    pCur->nbins = sqlite3_value_double(argv[i++]);
   }
   else {
-    pCur->bins = 1.0;
+    pCur->nbins = 1.0;
   }
-  if (idxNum & 8) {
+  if (idxNum >= HISTO_MINBIN) {
     pCur->minbin = sqlite3_value_double(argv[i++]);
   }
   else {
     pCur->minbin = 1.0;
   }
-  if (idxNum & 16) {
+  if (idxNum >= HISTO_MAXBIN) {
     pCur->maxbin = sqlite3_value_double(argv[i++]);
   }
   else {
     pCur->maxbin = 1.0;
   }
-
-  // Access pCur->colid in pCur->tblname and create a histogram here. 
-  // Then assign pCur->bin and pCur->count to the histogram.
-  char *zErrMsg;
-  char **result;
-  int rc;
-  int nrow, ncol;
-  int db_open;
-  std::string s_exe("SELECT ");
-  s_exe += pCur->colid + " FROM " + pCur->tblname; 
-
-  rc = sqlite3_get_table(
-    thisdb,              /* An open database */
-    s_exe.c_str(),       /* SQL to be executed */
-    &result,       /* Result written to a char *[]  that this points to */
-    &nrow,             /* Number of result rows written here */
-    &ncol,          /* Number of result columns written here */
-    &zErrMsg          /* Error msg written here */
-    );
-
-  mybins.clear();
-  if (rc == SQLITE_OK) {
-    for (int i = 0; i < ncol*nrow; ++i)
-    {
-      if (result[ncol + i])
-      {
-        std::string val(result[ncol + i]);
-        mybins.push_back(atof(val.c_str()));
-      }
-    }
+  if (idxNum >= HISTO_DISCRCOLID) {
+    pCur->discrcolid = (const char*)sqlite3_value_text(argv[i++]);
   }
-  sqlite3_free_table(result);
+  else {
+    pCur->discrcolid = "";
+  }
+  if (idxNum >= HISTO_DISCRVAL) {
+    pCur->discrval = (const char*)sqlite3_value_text(argv[i++]);
+  }
+  else {
+    pCur->discrval = "0.0";
+  }
 
-  myhistogram = Myhistogram(mybins, pCur->bins, pCur->minbin, pCur->maxbin);
+  std::vector<double> mybins;
+  std::string s_exe("SELECT ");
+  s_exe += pCur->colid + " FROM " + pCur->tblname;
+  mybins.clear();
+  mybins = GetColumn(thisdb, s_exe);
+  myhistogram1 = Myhistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin);
+  myhistogram2.resize(pCur->nbins);
+  pCur->totalcount = myhistogram1[0].count;
+  pCur->ratio = 0.0;
+
+  if (pCur->discrcolid != "") // make two histograms for values above and below discrval
+  {
+    std::string s_exe("SELECT "); // get first histogram where values are above discrval
+    s_exe += pCur->colid + " FROM " + pCur->tblname
+      + " WHERE " + pCur->discrcolid + " >= " + pCur->discrval;
+    mybins.clear();
+    mybins = GetColumn(thisdb, s_exe);
+    myhistogram1 = Myhistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin);
+    
+    // get second histogram where values are below discrval
+    s_exe = "SELECT " + pCur->colid + " FROM " + pCur->tblname
+      + " WHERE " + pCur->discrcolid + " < " + pCur->discrval;
+    mybins.clear();
+    mybins = GetColumn(thisdb, s_exe);
+    myhistogram2 = Myhistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin);
+
+    pCur->bin = myhistogram1[0].binval;
+    pCur->count1 = myhistogram1[0].count;
+    pCur->count2 = myhistogram2[0].count;
+    pCur->totalcount = myhistogram1[0].count + myhistogram2[0].count;
+    if (pCur->totalcount > 0)
+      pCur->ratio = pCur->count1 / pCur->totalcount;
+  }
 
   pCur->isDesc = 0;
   pCur->iRowid = 1;
 
-  pCur->bin = myhistogram[0].binval;
-  pCur->count = myhistogram[0].count;
-
-  return rc;
+  return SQLITE_OK;
 }
-
-
 
 
 /*
@@ -439,7 +443,7 @@ static int histoBestIndex(
   sqlite3_vtab *tab,
   sqlite3_index_info *pIdxInfo
 ){
-  std::cout << "in histoBestIndex" << std::endl;
+  //std::cout << "in histoBestIndex" << std::endl;
   int i;                 /* Loop over constraints */
   int idxNum = 0;        /* The query plan bitmask */
   int tblnameidx = -1;     /* Index of the start= constraint, or -1 if none */
@@ -447,6 +451,8 @@ static int histoBestIndex(
   int binsidx = -1;      /* Index of the step= constraint, or -1 if none */
   int minbinidx = -1;
   int maxbinidx = -1;
+  int discrcolididx = -1;
+  int discrvalidx = -1;
   int nArg = 0;          /* Number of arguments that histoFilter() expects */
 
   sqlite3_index_info::sqlite3_index_constraint *pConstraint;
@@ -457,23 +463,31 @@ static int histoBestIndex(
     switch( pConstraint->iColumn ){
       case HISTO_TBLNAME:
         tblnameidx = i;
-        idxNum |= 1;
+        idxNum = HISTO_TBLNAME;
         break;
       case HISTO_COLID:
         colididx = i;
-        idxNum |= 2;
+        idxNum = HISTO_COLID;
         break;
-      case HISTO_BINS:
+      case HISTO_NBINS:
         binsidx = i;
-        idxNum |= 4;
+        idxNum = HISTO_NBINS;
         break;
       case HISTO_MINBIN:
         minbinidx = i;
-        idxNum |= 8;
+        idxNum = HISTO_MINBIN;
         break;
       case HISTO_MAXBIN:
         maxbinidx = i;
-        idxNum |= 16;
+        idxNum = HISTO_MAXBIN;
+        break;
+      case HISTO_DISCRCOLID:
+        discrcolididx = i;
+        idxNum = HISTO_DISCRCOLID;
+        break;
+      case HISTO_DISCRVAL:
+        discrvalidx = i;
+        idxNum = HISTO_DISCRVAL;
         break;
     }
   }
@@ -497,21 +511,19 @@ static int histoBestIndex(
     pIdxInfo->aConstraintUsage[maxbinidx].argvIndex = ++nArg;
     pIdxInfo->aConstraintUsage[maxbinidx].omit = !SQLITE_SERIES_CONSTRAINT_VERIFY;
   }
-  if( (idxNum & 3)==3 ){
-    /* Both start= and stop= boundaries are available.  This is the 
-    ** the preferred case */
-    pIdxInfo->estimatedCost = (double)(2 - ((idxNum&4)!=0));
-    pIdxInfo->estimatedRows = 1000;
-    if( pIdxInfo->nOrderBy==1 ){
-      if( pIdxInfo->aOrderBy[0].desc ) idxNum |= 32;
-      pIdxInfo->orderByConsumed = 1;
-    }
-  }else{
-    /* If either boundary is missing, we have to generate a huge span
-    ** of numbers.  Make this case very expensive so that the query
-    ** planner will work hard to avoid it. */
-    pIdxInfo->estimatedCost = (double)2147483647;
-    pIdxInfo->estimatedRows = 2147483647;
+  if (discrcolididx >= 0) {
+    pIdxInfo->aConstraintUsage[discrcolididx].argvIndex = ++nArg;
+    pIdxInfo->aConstraintUsage[discrcolididx].omit = !SQLITE_SERIES_CONSTRAINT_VERIFY;
+  }
+  if (discrvalidx >= 0) {
+    pIdxInfo->aConstraintUsage[discrvalidx].argvIndex = ++nArg;
+    pIdxInfo->aConstraintUsage[discrvalidx].omit = !SQLITE_SERIES_CONSTRAINT_VERIFY;
+  }
+  pIdxInfo->estimatedCost = 2.0;
+  pIdxInfo->estimatedRows = 500;
+  if( pIdxInfo->nOrderBy==1 )
+  {
+    pIdxInfo->orderByConsumed = 1;
   }
   pIdxInfo->idxNum = idxNum;
   return SQLITE_OK;
