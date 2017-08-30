@@ -129,11 +129,9 @@ extern "C" {
 
 
 
-static double myvalues[10][2];
 sqlite3 *thisdb = NULL;
 
 std::vector<double> mybins;
-std::vector<int> mycounts;
 std::vector<histobin> myhistogram;
 
 /* histo_cursor is a subclass of sqlite3_vtab_cursor which will
@@ -228,12 +226,6 @@ static int histoOpen(sqlite3_vtab *p, sqlite3_vtab_cursor **ppCursor){
   memset(pCur, 0, sizeof(*pCur));
   *ppCursor = &pCur->base;
 
-  for (int i = 0; i < 10; i++)
-  {
-    myvalues[i][0] = 42.42 + (double)i;
-    myvalues[i][1] = 123 - (double)i;
-  }
-
   return SQLITE_OK;
 }
 
@@ -253,13 +245,10 @@ static int histoNext(sqlite3_vtab_cursor *cur){
   histo_cursor *pCur = (histo_cursor*)cur;
   pCur->iRowid++;
   int i = pCur->iRowid - 1;
-  //pCur->bin = myvalues[i][0];
-  //pCur->count = pCur->count = mybins[i];  // myvalues[i][1];
 
-  pCur->bin = myhistogram[i].binval;  // myvalues[0][0];
-  pCur->count = myhistogram[i].count;    // mybins[0];    // myvalues[j][1];
+  pCur->bin = myhistogram[i].binval; 
+  pCur->count = myhistogram[i].count;
 
-  //std::cout << "wibble" << std::endl;
   return SQLITE_OK;
 }
 
@@ -392,7 +381,7 @@ static int histoFilter(
   int nrow, ncol;
   int db_open;
   std::string s_exe("SELECT ");
-  s_exe += pCur->colid + " FROM " + pCur->tblname + " LIMIT 20;";
+  s_exe += pCur->colid + " FROM " + pCur->tblname; 
 
   rc = sqlite3_get_table(
     thisdb,              /* An open database */
@@ -404,10 +393,15 @@ static int histoFilter(
     );
 
   mybins.clear();
-  mycounts.clear();
   if (rc == SQLITE_OK) {
     for (int i = 0; i < ncol*nrow; ++i)
-      mybins.push_back(atof(result[ncol + i]));
+    {
+      if (result[ncol + i])
+      {
+        std::string val(result[ncol + i]);
+        mybins.push_back(atof(val.c_str()));
+      }
+    }
   }
   sqlite3_free_table(result);
 
@@ -416,8 +410,8 @@ static int histoFilter(
   pCur->isDesc = 0;
   pCur->iRowid = 1;
 
-  pCur->bin = myhistogram[0].binval;  // myvalues[0][0];
-  pCur->count = myhistogram[0].count;    // mybins[0];    // myvalues[j][1];
+  pCur->bin = myhistogram[0].binval;
+  pCur->count = myhistogram[0].count;
 
   return rc;
 }
