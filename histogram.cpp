@@ -8,9 +8,13 @@ two histograms deduced from the same table.
 Compiles with command line:
 
 On Windows with MSVC++:
+
 cl /Gd ..\MySqliteExtentions\histogram.cpp /I sqlite3 /DDLL /EHsc /LD /link /export:sqlite3_histogram_init /out:histogram.sqlext
+For debugging:
+cl /Gd ..\MySqliteExtentions\histogram.cpp /I sqlite3 /DDEBUG  /ZI /DDLL /EHsc /LD /link /debugtype:cv /export:sqlite3_histogram_init /out:histogram.sqlext
 
 On Linux with g++:
+
 g++ -fPIC -lm -shared histogram.cpp -o libhistogram.so
 
 */
@@ -77,7 +81,9 @@ struct histobin
   }
 };
 
-
+/* Caclulate a histogram from the col array with bins number of bins and values between 
+minbin and maxbin
+*/
 std::vector<histobin> CalcHistogram(std::vector<double> col, int bins, double minbin, double maxbin)
 {
   std::vector<histobin> histo;
@@ -140,6 +146,26 @@ struct histo_cursor {
   std::string    discrval;
 };
 
+
+/* Column numbers */
+enum ColNum
+{
+  HISTO_BIN = 0,
+  HISTO_COUNT1,
+  HISTO_COUNT2, 
+  HISTO_RATIO,     
+  HISTO_TOTALCOUNT,
+  HISTO_TBLNAME,   
+  HISTO_COLID,     
+  HISTO_NBINS,     
+  HISTO_MINBIN,    
+  HISTO_MAXBIN,    
+  HISTO_DISCRCOLID,
+  HISTO_DISCRVAL  
+};
+
+
+
 /*
 ** The histoConnect() method is invoked to create a new
 ** histo_vtab that describes the generate_histo virtual table.
@@ -164,22 +190,6 @@ static int histoConnect(
 
   sqlite3_vtab *pNew;
   int rc;
-
-/* Column numbers */
-
-#define HISTO_BIN        0
-#define HISTO_COUNT1     1
-#define HISTO_COUNT2     2
-#define HISTO_RATIO      3
-#define HISTO_TOTALCOUNT 4
-#define HISTO_TBLNAME    5
-#define HISTO_COLID      6
-#define HISTO_NBINS      7
-#define HISTO_MINBIN     8
-#define HISTO_MAXBIN     9
-#define HISTO_DISCRCOLID 10
-#define HISTO_DISCRVAL   11
-
   rc = sqlite3_declare_vtab(db,
   "CREATE TABLE x(bin REAL, count1 INTEGER, count2 INTEGER, ratio REAL, totalcount INTEGER, " \
   "tblname hidden, colid hidden, nbins hidden, minbin hidden, maxbin hidden, discrcolid hidden, discrval hidden)");
@@ -339,48 +349,36 @@ static int histoFilter(
   histo_cursor *pCur = (histo_cursor *)pVtabCursor;
   int i = 0;
   
-  if( idxNum >= HISTO_TBLNAME){
-    pCur->tblname = (const char*)sqlite3_value_text(argv[i++]);
-    //pCur->tblname = sqlite3_value_int64(argv[i++]);
-  }else{
-    pCur->tblname = "";
-  }
-  if( idxNum >= HISTO_COLID){
-    pCur->colid = (const char*)sqlite3_value_text(argv[i++]);
-  }else{
-    pCur->colid = "";
-  }
-  if (idxNum >= HISTO_NBINS) {
-    pCur->nbins = sqlite3_value_double(argv[i++]);
-  }
-  else {
-    pCur->nbins = 1.0;
-  }
-  if (idxNum >= HISTO_MINBIN) {
-    pCur->minbin = sqlite3_value_double(argv[i++]);
-  }
-  else {
-    pCur->minbin = 1.0;
-  }
-  if (idxNum >= HISTO_MAXBIN) {
-    pCur->maxbin = sqlite3_value_double(argv[i++]);
-  }
-  else {
-    pCur->maxbin = 1.0;
-  }
-  if (idxNum >= HISTO_DISCRCOLID) {
-    pCur->discrcolid = (const char*)sqlite3_value_text(argv[i++]);
-  }
-  else {
-    pCur->discrcolid = "";
-  }
-  if (idxNum >= HISTO_DISCRVAL) {
-    pCur->discrval = (const char*)sqlite3_value_text(argv[i++]);
-  }
-  else {
-    pCur->discrval = "0.0";
-  }
+  pCur->tblname = "";
+  pCur->colid = "";
+  pCur->nbins = 1.0;
+  pCur->minbin = 1.0;
+  pCur->maxbin = 1.0;
+  pCur->discrcolid = "";
+  pCur->discrval = "0.0";
 
+  if( idxNum >= HISTO_MAXBIN && idxNum != HISTO_DISCRCOLID)
+  {
+    pCur->tblname = (const char*)sqlite3_value_text(argv[i++]);
+    pCur->colid = (const char*)sqlite3_value_text(argv[i++]);
+    pCur->nbins = sqlite3_value_double(argv[i++]);
+    pCur->minbin = sqlite3_value_double(argv[i++]);
+    pCur->maxbin = sqlite3_value_double(argv[i++]);
+    if (idxNum >= HISTO_DISCRVAL)
+    {
+      pCur->discrcolid = (const char*)sqlite3_value_text(argv[i++]);
+      pCur->discrval = (const char*)sqlite3_value_text(argv[i++]);
+    }
+  }
+  else 
+  {
+    std::cerr << "Incorrect number of arguments for function histo.\n" \
+      "histo must be called either as:\n histo('tablename', 'columnname', nbins, minbin, maxbin)\n" \
+      "or as:\n histo('tablename', 'columnname', nbins, minbin, maxbin, 'discrcolid', discrval)"
+      << std::endl;
+    return SQLITE_ERROR;
+  }
+  
   std::vector<double> mybins;
   std::string s_exe("SELECT ");
   s_exe += pCur->colid + " FROM " + pCur->tblname;
