@@ -23,92 +23,13 @@ g++ -fPIC -lm -shared histogram.cpp -o libhistogram.so
 #include <vector>
 #include <cstdlib>
 
-
-#include "sqlite3ext.h"
-SQLITE_EXTENSION_INIT1
+#include "RegistExt.h"
+#include "helpers.h"
 #include <assert.h>
 #include <string.h>
 
+
 #ifndef SQLITE_OMIT_VIRTUALTABLE
-
-
-
-
-std::vector<double> GetColumn(sqlite3* db, std::string sqlxprs)
-{
-	// get column from sql expression and return it 
-	char *zErrMsg;
-  char **result;
-  int rc;
-  int nrow, ncol;
-  int db_open;
-
-  rc = sqlite3_get_table(
-    db,              /* An open database */
-    sqlxprs.c_str(),       /* SQL to be executed */
-    &result,       /* Result written to a char *[]  that this points to */
-    &nrow,             /* Number of result rows written here */
-    &ncol,          /* Number of result columns written here */
-    &zErrMsg          /* Error msg written here */
-    );
-
-  std::vector<double> column;
-	column.clear();
-  if (rc == SQLITE_OK) {
-    for (int i = 0; i < ncol*nrow; ++i)
-    {
-      if (result[ncol + i])
-      {
-        std::string val(result[ncol + i]);
-				column.push_back(atof(val.c_str()));
-      }
-    }
-  }
-  sqlite3_free_table(result);
-
-  return column;
-}
-
-
-struct histobin
-{
-  double binval;
-  int count;
-  histobin(double b = 0, int c = 0)
-  {
-    binval = b;
-    count = c;
-  }
-};
-
-/* Caclulate a histogram from the col array with bins number of bins and values between 
-minbin and maxbin
-*/
-std::vector<histobin> CalcHistogram(std::vector<double> col, int bins, double minbin, double maxbin)
-{
-  std::vector<histobin> histo;
-
-  histo.resize(bins);
-  double bindomain = maxbin - minbin;
-  double binwidth = bindomain / bins;
-
-  for (unsigned i = 0; i < histo.size(); i++)
-  {
-    double upper = binwidth * (i + 1) + minbin;
-    double middle = binwidth * (i + 0.5) + minbin;
-    double lower = binwidth * i + minbin;
-    histo[i].binval = middle;
-    histo[i].count = 0;
-
-    for (unsigned j = 0; j < col.size(); j++)
-    {
-      if (col[j] >= lower && col[j] < upper)
-        histo[i].count++;
-    }
-  }
-
-  return histo;
-};
 
 
 
@@ -119,9 +40,9 @@ extern "C" {
 
 
 
-sqlite3 *thisdb = NULL;
 std::vector<histobin> myhistogram1;
-std::vector<histobin> myhistogram2;
+
+
 
 /* histo_cursor is a subclass of sqlite3_vtab_cursor which will
 ** serve as the underlying representation of a cursor that scans
@@ -142,8 +63,6 @@ struct histo_cursor {
   int            nbins;
   double         minbin;
   double         maxbin;
-  std::string    discrcolid;
-  std::string    discrval;
 };
 
 
@@ -152,16 +71,11 @@ enum ColNum
 { // Column numbers. The order determines the order of columns in the table output
   HISTO_BIN = 0,
   HISTO_COUNT1,
-  HISTO_COUNT2, 
-  HISTO_RATIO,     
-  HISTO_TOTALCOUNT,
   HISTO_TBLNAME,   
   HISTO_COLID,     
   HISTO_NBINS,     
   HISTO_MINBIN,    
-  HISTO_MAXBIN,    
-  HISTO_DISCRCOLID,
-  HISTO_DISCRVAL  
+  HISTO_MAXBIN    
 };
 
 
@@ -181,7 +95,7 @@ enum ColNum
 **    (2) Tell SQLite (via the sqlite3_declare_vtab() interface) what the
 **        result set of queries against generate_histo will look like.
 */
-static int histoConnect(
+int histoConnect(
   sqlite3 *db,
   void *pAux,
   int argc, const char *const*argv,
@@ -194,8 +108,8 @@ static int histoConnect(
   // SELECT * FROM HISTO('tblname', 'colid', nbins, minbin, maxbin, 'discrcolid', discrval);
   // They won't show up in the SQL tables.
   rc = sqlite3_declare_vtab(db,
-  "CREATE TABLE x(bin REAL, count1 INTEGER, count2 INTEGER, ratio REAL, totalcount INTEGER, " \
-  "tblname hidden, colid hidden, nbins hidden, minbin hidden, maxbin hidden, discrcolid hidden, discrval hidden)");
+  "CREATE TABLE x(bin REAL, count INTEGER, " \
+  "tblname hidden, colid hidden, nbins hidden, minbin hidden, maxbin hidden)");
   if( rc==SQLITE_OK ){
     pNew = *ppVtab = (sqlite3_vtab *)sqlite3_malloc( sizeof(*pNew) );
     if( pNew==0 ) return SQLITE_NOMEM;
@@ -208,7 +122,7 @@ static int histoConnect(
 /*
 ** This method is the destructor for histo_cursor objects.
 */
-static int histoDisconnect(sqlite3_vtab *pVtab){
+int histoDisconnect(sqlite3_vtab *pVtab){
   sqlite3_free(pVtab);
   return SQLITE_OK;
 }
@@ -216,7 +130,7 @@ static int histoDisconnect(sqlite3_vtab *pVtab){
 /*
 ** Constructor for a new histo_cursor object.
 */
-static int histoOpen(sqlite3_vtab *p, sqlite3_vtab_cursor **ppCursor){
+int histoOpen(sqlite3_vtab *p, sqlite3_vtab_cursor **ppCursor){
   histo_cursor *pCur;
   pCur = (histo_cursor *)sqlite3_malloc( sizeof(*pCur) );
   //pCur = sqlite3_malloc(sizeof(*pCur));
@@ -229,7 +143,7 @@ static int histoOpen(sqlite3_vtab *p, sqlite3_vtab_cursor **ppCursor){
 /*
 ** Destructor for a histo_cursor.
 */
-static int histoClose(sqlite3_vtab_cursor *cur){
+int histoClose(sqlite3_vtab_cursor *cur){
   sqlite3_free(cur);
   return SQLITE_OK;
 }
@@ -238,18 +152,12 @@ static int histoClose(sqlite3_vtab_cursor *cur){
 /*
 ** Advance a histo_cursor to its next row of output.
 */
-static int histoNext(sqlite3_vtab_cursor *cur){
+int histoNext(sqlite3_vtab_cursor *cur){
   histo_cursor *pCur = (histo_cursor*)cur;
   pCur->iRowid++;
   int i = pCur->iRowid - 1;
   pCur->bin = myhistogram1[i].binval; 
   pCur->count1 = myhistogram1[i].count;
-  pCur->count2 = myhistogram2[i].count;
-  pCur->totalcount = myhistogram1[i].count + myhistogram2[i].count;
-  if (pCur->totalcount > 0)
-    pCur->ratio = ((double) pCur->count1 ) / pCur->totalcount;
-  else
-    pCur->ratio = 0.0;
   return SQLITE_OK;
 }
 
@@ -257,7 +165,7 @@ static int histoNext(sqlite3_vtab_cursor *cur){
 ** Return values of columns for the row at which the histo_cursor
 ** is currently pointing.
 */
-static int histoColumn(
+int histoColumn(
   sqlite3_vtab_cursor *cur,   /* The cursor */
   sqlite3_context *ctx,       /* First argument to sqlite3_result_...() */
   int i                       /* Which column to return */
@@ -269,46 +177,11 @@ static int histoColumn(
   switch( i ){
     case HISTO_BIN:     d = pCur->bin; sqlite3_result_double(ctx, d); break;
     case HISTO_COUNT1:   x = pCur->count1; sqlite3_result_int64(ctx, x); break;
-    case HISTO_COUNT2: {
-      if (pCur->discrcolid == "") 
-      { // if not computing ratio histogram then return empty column values
-        sqlite3_result_null(ctx);
-      }
-      else
-      {
-        x = pCur->count2; sqlite3_result_int64(ctx, x);
-      } 
-    } break;
-
-    case HISTO_RATIO: {
-      if (pCur->discrcolid == "")
-      { // if not computing ratio histogram then return empty column values
-        sqlite3_result_null(ctx);
-      }
-      else
-      {
-        d = pCur->ratio; sqlite3_result_double(ctx, d);
-      }
-    } break;
-
-    case HISTO_TOTALCOUNT: {
-      if (pCur->discrcolid == "")
-      { // if not computing ratio histogram then return empty column values
-        sqlite3_result_null(ctx);
-      }
-      else
-      {
-        x = pCur->totalcount; sqlite3_result_int64(ctx, x);
-      }
-    } break;
-
     case HISTO_TBLNAME: c = pCur->tblname; sqlite3_result_text(ctx, c.c_str(), -1, NULL);  break;
     case HISTO_COLID:   c = pCur->colid; sqlite3_result_text(ctx, c.c_str(), -1, NULL); break;
     case HISTO_NBINS:    x = pCur->nbins; sqlite3_result_double(ctx, x); break;
     case HISTO_MINBIN:  d = pCur->minbin; sqlite3_result_double(ctx, d); break;
-    case HISTO_MAXBIN:  d = pCur->minbin; sqlite3_result_double(ctx, d); break;
-    case HISTO_DISCRCOLID:  c = pCur->discrcolid; sqlite3_result_text(ctx, c.c_str(), -1, NULL);  break;
-    case HISTO_DISCRVAL:  c = pCur->discrval; sqlite3_result_text(ctx, c.c_str(), -1, NULL);  break;
+    case HISTO_MAXBIN:  d = pCur->maxbin; sqlite3_result_double(ctx, d); break;
     default:            x = pCur->count1; sqlite3_result_int64(ctx, x); break;
   }
   return SQLITE_OK;
@@ -318,7 +191,7 @@ static int histoColumn(
 ** Return the rowid for the current row.  In this implementation, the
 ** rowid is the same as the output value.
 */
-static int histoRowid(sqlite3_vtab_cursor *cur, sqlite_int64 *pRowid){
+int histoRowid(sqlite3_vtab_cursor *cur, sqlite_int64 *pRowid){
   histo_cursor *pCur = (histo_cursor*)cur;
   *pRowid = pCur->iRowid;
   return SQLITE_OK;
@@ -329,7 +202,7 @@ static int histoRowid(sqlite3_vtab_cursor *cur, sqlite_int64 *pRowid){
 ** row of output.
 */
 
-static int histoEof(sqlite3_vtab_cursor *cur) {
+int histoEof(sqlite3_vtab_cursor *cur) {
   histo_cursor *pCur = (histo_cursor*)cur;
   if (pCur->isDesc) {
     return pCur->iRowid < 1;
@@ -339,13 +212,6 @@ static int histoEof(sqlite3_vtab_cursor *cur) {
   }
 }
 
-/* True to cause run-time checking of the start=, stop=, and/or step= 
-** parameters.  The only reason to do this is for testing the
-** constraint checking logic for virtual tables in the SQLite core.
-*/
-#ifndef SQLITE_SERIES_CONSTRAINT_VERIFY
-# define SQLITE_SERIES_CONSTRAINT_VERIFY 0
-#endif
 
 /*
 ** This method is called to "rewind" the histo_cursor object back
@@ -360,7 +226,7 @@ static int histoEof(sqlite3_vtab_cursor *cur) {
 ** is pointing at the first row, or pointing off the end of the table
 ** (so that histoEof() will return true) if the table is empty.
 */
-static int histoFilter(
+int histoFilter(
   sqlite3_vtab_cursor *pVtabCursor, 
   int idxNum, const char *idxStr,
   int argc, sqlite3_value **argv
@@ -372,28 +238,19 @@ static int histoFilter(
   pCur->nbins = 1.0;
   pCur->minbin = 1.0;
   pCur->maxbin = 1.0;
-  pCur->discrcolid = "";
-  pCur->discrval = "0.0";
 
-  if( idxNum >= HISTO_MAXBIN && idxNum != HISTO_DISCRCOLID)
+  if( idxNum >= HISTO_MAXBIN)
   {
     pCur->tblname = (const char*)sqlite3_value_text(argv[i++]);
     pCur->colid = (const char*)sqlite3_value_text(argv[i++]);
     pCur->nbins = sqlite3_value_double(argv[i++]);
     pCur->minbin = sqlite3_value_double(argv[i++]);
     pCur->maxbin = sqlite3_value_double(argv[i++]);
-    if (idxNum >= HISTO_DISCRVAL)
-    {
-      pCur->discrcolid = (const char*)sqlite3_value_text(argv[i++]);
-      pCur->discrval = (const char*)sqlite3_value_text(argv[i++]);
-    }
   }
   else 
   {
     std::cerr << "Incorrect number of arguments for function HISTO.\n" \
-     "HISTO must be called either as:\n HISTO('tablename', 'columnname', nbins, minbin, maxbin)\n" \
-     "or as:\n HISTO('tablename', 'columnname', nbins, minbin, maxbin, 'discrcolid', discrval)"
-     << std::endl;
+     "HISTO must be called as:\n HISTO('tablename', 'columnname', nbins, minbin, maxbin)" << std::endl;
     return SQLITE_ERROR;
   }
   
@@ -403,33 +260,8 @@ static int histoFilter(
   mybins.clear();
   mybins = GetColumn(thisdb, s_exe);
   myhistogram1 = CalcHistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin);
-  myhistogram2.resize(pCur->nbins);
-  pCur->totalcount = myhistogram1[0].count;
-  pCur->ratio = 0.0;
-
-  if (pCur->discrcolid != "") // make two histograms for values above and below discrval
-  {
-    std::string s_exe("SELECT "); // get first histogram where values are above discrval
-    s_exe += pCur->colid + " FROM " + pCur->tblname
-      + " WHERE " + pCur->discrcolid + " >= " + pCur->discrval;
-    mybins.clear();
-    mybins = GetColumn(thisdb, s_exe);
-    myhistogram1 = CalcHistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin);
-    
-    // get second histogram where values are below discrval
-    s_exe = "SELECT " + pCur->colid + " FROM " + pCur->tblname
-      + " WHERE " + pCur->discrcolid + " < " + pCur->discrval;
-    mybins.clear();
-    mybins = GetColumn(thisdb, s_exe);
-    myhistogram2 = CalcHistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin);
-  }
   pCur->bin = myhistogram1[0].binval;
   pCur->count1 = myhistogram1[0].count;
-  pCur->count2 = myhistogram2[0].count;
-  pCur->totalcount = myhistogram1[0].count + myhistogram2[0].count;
-  if (pCur->totalcount > 0)
-    pCur->ratio = pCur->count1 / pCur->totalcount;
-
   pCur->isDesc = 0;
   pCur->iRowid = 1;
 
@@ -453,7 +285,7 @@ static int histoFilter(
 **  (4)  step = $value   -- constraint exists
 **  (8)  output in descending order
 */
-static int histoBestIndex(
+int histoBestIndex(
   sqlite3_vtab *tab,
   sqlite3_index_info *pIdxInfo
 ){
@@ -464,8 +296,6 @@ static int histoBestIndex(
   int binsidx = -1;      /* Index of the step= constraint, or -1 if none */
   int minbinidx = -1;
   int maxbinidx = -1;
-  int discrcolididx = -1;
-  int discrvalidx = -1;
   int nArg = 0;          /* Number of arguments that histoFilter() expects */
 
   sqlite3_index_info::sqlite3_index_constraint *pConstraint;
@@ -494,43 +324,27 @@ static int histoBestIndex(
         maxbinidx = i;
         idxNum = HISTO_MAXBIN;
         break;
-      case HISTO_DISCRCOLID:
-        discrcolididx = i;
-        idxNum = HISTO_DISCRCOLID;
-        break;
-      case HISTO_DISCRVAL:
-        discrvalidx = i;
-        idxNum = HISTO_DISCRVAL;
-        break;
     }
   }
   if(tblnameidx >=0 ){
     pIdxInfo->aConstraintUsage[tblnameidx].argvIndex = ++nArg;
-    pIdxInfo->aConstraintUsage[tblnameidx].omit= !SQLITE_SERIES_CONSTRAINT_VERIFY;
+    pIdxInfo->aConstraintUsage[tblnameidx].omit= 1;
   }
   if(colididx >=0 ){
     pIdxInfo->aConstraintUsage[colididx].argvIndex = ++nArg;
-    pIdxInfo->aConstraintUsage[colididx].omit = !SQLITE_SERIES_CONSTRAINT_VERIFY;
+    pIdxInfo->aConstraintUsage[colididx].omit = 1;
   }
   if (binsidx >= 0) {
     pIdxInfo->aConstraintUsage[binsidx].argvIndex = ++nArg;
-    pIdxInfo->aConstraintUsage[binsidx].omit = !SQLITE_SERIES_CONSTRAINT_VERIFY;
+    pIdxInfo->aConstraintUsage[binsidx].omit = 1;
   }
   if (minbinidx >= 0) {
     pIdxInfo->aConstraintUsage[minbinidx].argvIndex = ++nArg;
-    pIdxInfo->aConstraintUsage[minbinidx].omit = !SQLITE_SERIES_CONSTRAINT_VERIFY;
+    pIdxInfo->aConstraintUsage[minbinidx].omit = 1;
   }
   if (maxbinidx >= 0) {
     pIdxInfo->aConstraintUsage[maxbinidx].argvIndex = ++nArg;
-    pIdxInfo->aConstraintUsage[maxbinidx].omit = !SQLITE_SERIES_CONSTRAINT_VERIFY;
-  }
-  if (discrcolididx >= 0) {
-    pIdxInfo->aConstraintUsage[discrcolididx].argvIndex = ++nArg;
-    pIdxInfo->aConstraintUsage[discrcolididx].omit = !SQLITE_SERIES_CONSTRAINT_VERIFY;
-  }
-  if (discrvalidx >= 0) {
-    pIdxInfo->aConstraintUsage[discrvalidx].argvIndex = ++nArg;
-    pIdxInfo->aConstraintUsage[discrvalidx].omit = !SQLITE_SERIES_CONSTRAINT_VERIFY;
+    pIdxInfo->aConstraintUsage[maxbinidx].omit = 1;
   }
   pIdxInfo->estimatedCost = 2.0;
   pIdxInfo->estimatedRows = 500;
@@ -542,11 +356,13 @@ static int histoBestIndex(
   return SQLITE_OK;
 }
 
+
+
 /*
-** This following structure defines all the methods for the 
+** This following structure defines all the methods for the
 ** generate_histo virtual table.
 */
-static sqlite3_module histoModule = {
+sqlite3_module histoModule = {
   0,                         /* iVersion */
   0,                         /* xCreate */
   histoConnect,             /* xConnect */
@@ -569,32 +385,11 @@ static sqlite3_module histoModule = {
   0,                         /* xRename */
 };
 
+
+
 #endif /* SQLITE_OMIT_VIRTUALTABLE */
 
 
-#ifdef _WIN32
-__declspec(dllexport)
-#endif
-int sqlite3_histogram_init( // always use lower case
-  sqlite3 *db, 
-  char **pzErrMsg, 
-  const sqlite3_api_routines *pApi
-)
-{
-  int rc = SQLITE_OK;
-  SQLITE_EXTENSION_INIT2(pApi);
-#ifndef SQLITE_OMIT_VIRTUALTABLE
-  if( sqlite3_libversion_number()<3008012 )
-  {
-    *pzErrMsg = sqlite3_mprintf(
-        "HISTO() requires SQLite 3.8.12 or later");
-    return SQLITE_ERROR;
-  }
-  rc = sqlite3_create_module(db, "HISTO", &histoModule, 0);
-
-#endif
-  return rc;
-}
 
 
 #ifdef __cplusplus
