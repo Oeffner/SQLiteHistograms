@@ -1,10 +1,10 @@
 /*
 
-cl /Fohelpers.obj /c helpers.cpp  /EHsc
- && cl /Foratiohistogram.obj /c ratiohistogram.cpp /EHsc
- && cl /Fohistogram.obj /c histogram.cpp /EHsc
- && cl /FoRegistExt.obj /c RegistExt.cpp /EHsc
- && link /DLL /OUT:myextensions.sqlext RegistExt.obj histogram.obj /export:sqlite3_myextensions_init
+cl /Fohelpers.obj /c helpers.cpp  /EHsc ^
+ && cl /Foratiohistogram.obj /c ratiohistogram.cpp /EHsc ^
+ && cl /Fohistogram.obj /c histogram.cpp /EHsc ^
+ && cl /FoRegistExt.obj /c RegistExt.cpp /EHsc ^
+ && link /DLL /OUT:myextensions.sqlext helpers.obj  RegistExt.obj histogram.obj ratiohistogram.obj  /export:sqlite3_myextensions_init
 
 With debug info:
 
