@@ -11,11 +11,12 @@
 struct histobin
 {
   double binval;
-  int count;
-  histobin(double b = 0, int c = 0)
+  int count, accumcount;
+  histobin(double b = 0, int c = 0, int ac = 0)
   {
     binval = b;
     count = c;
+    accumcount = ac;
   }
 };
 

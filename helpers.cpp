@@ -55,14 +55,14 @@ std::vector< std::vector<double> > GetColumns(sqlite3* db, std::string sqlxprs)
     &ncol,          /* Number of result columns written here */
     &zErrMsg          /* Error msg written here */
     );
-/* If table is structured as:
+/* If SQL table is structured as:
   Name        | Age
   -----------------------
   Alice       | 43
   Bob         | 28
   Cindy       | 21
 
-  then **result will look like:
+  then &result will look like:
 
   result[0] = "Name";
   result[1] = "Age";
@@ -109,7 +109,7 @@ std::vector<histobin> CalcHistogram(std::vector<double> col, int bins, double mi
   histo.resize(bins);
   double bindomain = maxbin - minbin;
   double binwidth = bindomain / bins;
-
+  int accumcount = 0;
   for (unsigned i = 0; i < histo.size(); i++)
   {
     double upper = binwidth * (i + 1) + minbin;
@@ -117,12 +117,16 @@ std::vector<histobin> CalcHistogram(std::vector<double> col, int bins, double mi
     double lower = binwidth * i + minbin;
     histo[i].binval = middle;
     histo[i].count = 0;
-
+    
     for (unsigned j = 0; j < col.size(); j++)
     {
       if (col[j] >= lower && col[j] < upper)
+      {
         histo[i].count++;
+        accumcount++;
+      }
     }
+    histo[i].accumcount = accumcount;
   }
 
   return histo;

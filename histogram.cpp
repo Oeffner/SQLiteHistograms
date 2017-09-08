@@ -71,6 +71,7 @@ enum ColNum
 { // Column numbers. The order determines the order of columns in the table output
   HISTO_BIN = 0,
   HISTO_COUNT1,
+  HISTO_COUNT2,
   HISTO_TBLNAME,   
   HISTO_COLID,     
   HISTO_NBINS,     
@@ -108,7 +109,7 @@ int histoConnect(
   // SELECT * FROM HISTO('tblname', 'colid', nbins, minbin, maxbin, 'discrcolid', discrval);
   // They won't show up in the SQL tables.
   rc = sqlite3_declare_vtab(db,
-  "CREATE TABLE x(bin REAL, count INTEGER, " \
+  "CREATE TABLE x(bin REAL, count INTEGER, accumcount INTEGER, " \
   "tblname hidden, colid hidden, nbins hidden, minbin hidden, maxbin hidden)");
   if( rc==SQLITE_OK ){
     pNew = *ppVtab = (sqlite3_vtab *)sqlite3_malloc( sizeof(*pNew) );
@@ -158,6 +159,7 @@ int histoNext(sqlite3_vtab_cursor *cur){
   int i = pCur->iRowid - 1;
   pCur->bin = myhistogram1[i].binval; 
   pCur->count1 = myhistogram1[i].count;
+  pCur->count2 = myhistogram1[i].accumcount;
   return SQLITE_OK;
 }
 
@@ -177,6 +179,7 @@ int histoColumn(
   switch( i ){
     case HISTO_BIN:     d = pCur->bin; sqlite3_result_double(ctx, d); break;
     case HISTO_COUNT1:   x = pCur->count1; sqlite3_result_int64(ctx, x); break;
+    case HISTO_COUNT2:   x = pCur->count2; sqlite3_result_int64(ctx, x); break;
     case HISTO_TBLNAME: c = pCur->tblname; sqlite3_result_text(ctx, c.c_str(), -1, NULL);  break;
     case HISTO_COLID:   c = pCur->colid; sqlite3_result_text(ctx, c.c_str(), -1, NULL); break;
     case HISTO_NBINS:    x = pCur->nbins; sqlite3_result_double(ctx, x); break;
@@ -262,6 +265,7 @@ int histoFilter(
   myhistogram1 = CalcHistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin);
   pCur->bin = myhistogram1[0].binval;
   pCur->count1 = myhistogram1[0].count;
+  pCur->count2 = myhistogram1[0].accumcount;
   pCur->isDesc = 0;
   pCur->iRowid = 1;
 
