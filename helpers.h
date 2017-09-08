@@ -42,6 +42,9 @@ minbin and maxbin
 std::vector<histobin> CalcHistogram(std::vector<double> col, int bins,
   double minbin, double maxbin);
 
+std::vector<interpolatebin> CalcInterpolations(std::vector< std::vector<double> > XYs, int bins,
+  double minbin, double maxbin);
+
 
 
 #pragma once

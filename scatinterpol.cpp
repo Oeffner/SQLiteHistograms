@@ -132,10 +132,10 @@ int scatinterpolateNext(sqlite3_vtab_cursor *cur){
   scatinterpolate_cursor *pCur = (scatinterpolate_cursor*)cur;
   pCur->iRowid++;
   int i = pCur->iRowid - 1;
-  pCur->x = myscatinterpolatebins[0].xval;
-  pCur->y = myscatinterpolatebins[0].yval;
-  pCur->sigma = myscatinterpolatebins[0].sigma;
-  pCur->count = myscatinterpolatebins[0].count;
+  pCur->x = myscatinterpolatebins[i].xval;
+  pCur->y = myscatinterpolatebins[i].yval;
+  pCur->sigma = myscatinterpolatebins[i].sigma;
+  pCur->count = myscatinterpolatebins[i].count;
   return SQLITE_OK;
 }
 
@@ -228,7 +228,7 @@ int scatinterpolateFilter(
   std::string s_exe("SELECT ");
   s_exe += pCur->xcolid + ", " + pCur->ycolid + " FROM " + pCur->tblname;
   std::vector< std::vector<double> > myXYs = GetColumns(thisdb, s_exe);
-  //myscatinterpolatebins = CalcHistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin);
+  myscatinterpolatebins = CalcInterpolations(myXYs, pCur->nbins, pCur->minbin, pCur->maxbin);
   pCur->x = myscatinterpolatebins[0].xval;
   pCur->y = myscatinterpolatebins[0].yval;
   pCur->sigma = myscatinterpolatebins[0].sigma;

@@ -129,3 +129,43 @@ std::vector<histobin> CalcHistogram(std::vector<double> col, int bins, double mi
 };
 
 
+std::vector<interpolatebin> CalcInterpolations(std::vector< std::vector<double> > XYs, int bins, 
+                                               double minbin, double maxbin)
+{
+  std::vector< std::vector<double> > shiftval;
+  shiftval.resize(2);
+  shiftval[0].resize(bins);
+  shiftval[1].resize(bins);
+  double shiftconst = 123.321;
+
+  std::vector<interpolatebin> interpol;
+  interpol.resize(bins);
+  double bindomain = maxbin - minbin;
+  double binwidth = bindomain / bins;
+  for (unsigned i = 0; i < interpol.size(); i++)
+  {
+    double upper = binwidth * (i + 1) + minbin;
+    double middle = binwidth * (i + 0.5) + minbin;
+    double lower = binwidth * i + minbin;
+    interpol[i].xval = middle;
+    interpol[i].count = 0;
+    shiftval[0][i] = shiftval[1][i] = 0.0;
+    for (unsigned j = 0; j < XYs[0].size(); j++)
+    {
+      if (XYs[0][j] >= lower && XYs[0][j] < upper)
+      {
+        double shifted = XYs[1][j] + shiftconst;
+        shiftval[0][i] += shifted; // avoid numerical instability close to zero
+        shiftval[1][i] += shifted*shifted;
+
+        interpol[i].yval += XYs[1][j];
+        interpol[i].count++;
+      }
+    }
+    interpol[i].yval /= interpol[i].count;
+    interpol[i].sigma = sqrt( ( shiftval[1][i] - (shiftval[0][i] * shiftval[0][i])/ interpol[i].count)/ interpol[i].count);
+  }
+
+  return interpol;
+}
+
