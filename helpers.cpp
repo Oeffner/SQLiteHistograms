@@ -1,42 +1,11 @@
+/*
+helpers.cpp, Robert Oeffner 2017
+
+*/
 
 
 #include "helpers.h"
 
-
-std::vector<double> GetColumn(sqlite3* db, std::string sqlxprs)
-{
-  // get column from sql expression and return it 
-  char *zErrMsg;
-  char **result;
-  int rc;
-  int nrow, ncol;
-  int db_open;
-
-  rc = sqlite3_get_table(
-    db,              /* An open database */
-    sqlxprs.c_str(),       /* SQL to be executed */
-    &result,       /* Result written to a char *[]  that this points to */
-    &nrow,             /* Number of result rows written here */
-    &ncol,          /* Number of result columns written here */
-    &zErrMsg          /* Error msg written here */
-    );
-
-  std::vector<double> column;
-  column.clear();
-  if (rc == SQLITE_OK) {
-    for (int i = 0; i < ncol*nrow; ++i)
-    {
-      if (result[ncol + i])
-      {
-        std::string val(result[ncol + i]);
-        column.push_back(atof(val.c_str()));
-      }
-    }
-  }
-  sqlite3_free_table(result);
-
-  return column;
-}
 
 
 std::vector< std::vector<double> > GetColumns(sqlite3* db, std::string sqlxprs)
@@ -102,7 +71,8 @@ std::vector< std::vector<double> > GetColumns(sqlite3* db, std::string sqlxprs)
 /* Caclulate a histogram from the col array with bins number of bins and values between
 minbin and maxbin
 */
-std::vector<histobin> CalcHistogram(std::vector<double> col, int bins, double minbin, double maxbin)
+std::vector<histobin> CalcHistogram(std::vector< std::vector<double> > Yvals, 
+                                     int bins, double minbin, double maxbin)
 {
   std::vector<histobin> histo;
 
@@ -118,9 +88,9 @@ std::vector<histobin> CalcHistogram(std::vector<double> col, int bins, double mi
     histo[i].binval = middle;
     histo[i].count = 0;
     
-    for (unsigned j = 0; j < col.size(); j++)
+    for (unsigned j = 0; j < Yvals[0].size(); j++)
     {
-      if (col[j] >= lower && col[j] < upper)
+      if (Yvals[0][j] >= lower && Yvals[0][j] < upper)
       {
         histo[i].count++;
         accumcount++;
@@ -133,8 +103,11 @@ std::vector<histobin> CalcHistogram(std::vector<double> col, int bins, double mi
 };
 
 
-std::vector<interpolatebin> CalcInterpolations(std::vector< std::vector<double> > XYs, int bins, 
-                                               double minbin, double maxbin)
+/* Caclulate interpolation values for scatter data within bin values between
+minbin and maxbin
+*/
+std::vector<interpolatebin> CalcInterpolations(std::vector< std::vector<double> > XYvals, 
+                                               int bins, double minbin, double maxbin)
 {
   std::vector< std::vector<double> > shiftval;
   shiftval.resize(2);
@@ -154,20 +127,21 @@ std::vector<interpolatebin> CalcInterpolations(std::vector< std::vector<double> 
     interpol[i].xval = middle;
     interpol[i].count = 0;
     shiftval[0][i] = shiftval[1][i] = 0.0;
-    for (unsigned j = 0; j < XYs[0].size(); j++)
+    for (unsigned j = 0; j < XYvals[0].size(); j++)
     {
-      if (XYs[0][j] >= lower && XYs[0][j] < upper)
+      if (XYvals[0][j] >= lower && XYvals[0][j] < upper)
       {
-        double shifted = XYs[1][j] + shiftconst;
+        double shifted = XYvals[1][j] + shiftconst;
         shiftval[0][i] += shifted; // avoid numerical instability close to zero
         shiftval[1][i] += shifted*shifted;
 
-        interpol[i].yval += XYs[1][j];
+        interpol[i].yval += XYvals[1][j];
         interpol[i].count++;
       }
     }
     interpol[i].yval /= interpol[i].count;
-    interpol[i].sigma = sqrt( ( shiftval[1][i] - (shiftval[0][i] * shiftval[0][i])/ interpol[i].count)/ interpol[i].count);
+    interpol[i].sigma = sqrt( ( shiftval[1][i]
+      - (shiftval[0][i] * shiftval[0][i])/interpol[i].count)/ interpol[i].count);
   }
 
   return interpol;

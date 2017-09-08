@@ -313,11 +313,11 @@ int ratiohistoFilter(
     return SQLITE_ERROR;
   }
   
-  std::vector<double> mybins;
+  std::vector< std::vector<double> > mybins;
   std::string s_exe("SELECT ");
   s_exe += pCur->colid + " FROM " + pCur->tblname;
   mybins.clear();
-  mybins = GetColumn(thisdb, s_exe);
+  mybins = GetColumns(thisdb, s_exe);
   myratiohistogram1 = CalcHistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin);
   myratiohistogram2.resize(pCur->nbins);
   pCur->totalcount = myratiohistogram1[0].count;
@@ -329,14 +329,14 @@ int ratiohistoFilter(
     s_exe += pCur->colid + " FROM " + pCur->tblname
       + " WHERE " + pCur->discrcolid + " >= " + pCur->discrval;
     mybins.clear();
-    mybins = GetColumn(thisdb, s_exe);
+    mybins = GetColumns(thisdb, s_exe);
     myratiohistogram1 = CalcHistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin);
     
     // get second ratiohistogram where values are below discrval
     s_exe = "SELECT " + pCur->colid + " FROM " + pCur->tblname
       + " WHERE " + pCur->discrcolid + " < " + pCur->discrval;
     mybins.clear();
-    mybins = GetColumn(thisdb, s_exe);
+    mybins = GetColumns(thisdb, s_exe);
     myratiohistogram2 = CalcHistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin);
   }
   pCur->bin = myratiohistogram1[0].binval;

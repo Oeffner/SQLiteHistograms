@@ -1,3 +1,7 @@
+/*
+helpers.h, Robert Oeffner 2017
+
+*/
 
 #include <iostream>
 #include <vector>
@@ -34,16 +38,12 @@ struct interpolatebin
 };
 
 
-std::vector<double> GetColumn(sqlite3* db, std::string sqlxprs);
 std::vector< std::vector<double> > GetColumns(sqlite3* db, std::string sqlxprs);
 
-/* Caclulate a histogram from the col array with bins number of bins and values between
-minbin and maxbin
-*/
-std::vector<histobin> CalcHistogram(std::vector<double> col, int bins,
-  double minbin, double maxbin);
+std::vector<histobin> CalcHistogram(std::vector< std::vector<double> > Yvals,
+  int bins, double minbin, double maxbin);
 
-std::vector<interpolatebin> CalcInterpolations(std::vector< std::vector<double> > XYs, int bins,
+std::vector<interpolatebin> CalcInterpolations(std::vector< std::vector<double> > XYvals, int bins,
   double minbin, double maxbin);
 
 

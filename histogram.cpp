@@ -257,11 +257,11 @@ int histoFilter(
     return SQLITE_ERROR;
   }
   
-  std::vector<double> mybins;
+  std::vector< std::vector<double> > mybins;
   std::string s_exe("SELECT ");
   s_exe += pCur->colid + " FROM " + pCur->tblname;
   mybins.clear();
-  mybins = GetColumn(thisdb, s_exe);
+  mybins = GetColumns(thisdb, s_exe);
   myhistogram1 = CalcHistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin);
   pCur->bin = myhistogram1[0].binval;
   pCur->count1 = myhistogram1[0].count;
