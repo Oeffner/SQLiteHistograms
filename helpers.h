@@ -20,7 +20,21 @@ struct histobin
 };
 
 
+struct interpolatebin
+{
+  double xval, yval, sigma;
+  int count;
+  interpolatebin(double x = 0, double y = 0, double s = 0, int c = 0)
+  {
+    xval = x;
+    yval = y;
+    count = c;
+  }
+};
+
+
 std::vector<double> GetColumn(sqlite3* db, std::string sqlxprs);
+std::vector< std::vector<double> > GetColumns(sqlite3* db, std::string sqlxprs);
 
 /* Caclulate a histogram from the col array with bins number of bins and values between
 minbin and maxbin

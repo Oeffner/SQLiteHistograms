@@ -571,7 +571,7 @@ static void HistoFinalize(sqlite3_context *context) {
 #ifdef _WIN32
 __declspec(dllexport)
 #endif
-int sqlite3_testvtables_init( // always use lower case
+int sqlite3_extension_init( // always use lower case
   sqlite3 *db, 
   char **pzErrMsg, 
   const sqlite3_api_routines *pApi

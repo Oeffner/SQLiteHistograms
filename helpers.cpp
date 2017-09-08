@@ -39,6 +39,66 @@ std::vector<double> GetColumn(sqlite3* db, std::string sqlxprs)
 }
 
 
+std::vector< std::vector<double> > GetColumns(sqlite3* db, std::string sqlxprs)
+{
+  // get column from sql expression and return it 
+  char *zErrMsg;
+  char **result;
+  int rc;
+  int nrow, ncol;
+  int db_open;
+  rc = sqlite3_get_table(
+    db,              /* An open database */
+    sqlxprs.c_str(),       /* SQL to be executed */
+    &result,       /* Result written to a char *[]  that this points to */
+    &nrow,             /* Number of result rows written here */
+    &ncol,          /* Number of result columns written here */
+    &zErrMsg          /* Error msg written here */
+    );
+/* If table is structured as:
+  Name        | Age
+  -----------------------
+  Alice       | 43
+  Bob         | 28
+  Cindy       | 21
+
+  then **result will look like:
+
+  result[0] = "Name";
+  result[1] = "Age";
+  result[2] = "Alice";
+  result[3] = "43";
+  result[4] = "Bob";
+  result[5] = "28";
+  result[6] = "Cindy";
+  result[7] = "21";
+*/
+  std::vector< std::vector<double> > columns;
+  columns.clear();
+  columns.resize(ncol);
+
+  for (int n = 0; n < ncol; n++)
+  {
+    columns[n].resize(nrow);
+  }
+  if (rc == SQLITE_OK) {
+    for (int i = 0; i < nrow*ncol; i++)
+    {
+      int col = i % ncol;
+      int row = floor(i / ncol);
+      if (result[ncol + i]) // skip column names
+      {
+        std::string val(result[ncol + i]);
+        columns[col][row] = atof(val.c_str());
+      }
+    }
+  }
+  sqlite3_free_table(result);
+
+  return columns;
+}
+
+
 /* Caclulate a histogram from the col array with bins number of bins and values between
 minbin and maxbin
 */

@@ -60,6 +60,30 @@ int ratiohistoFilter(
 int ratiohistoBestIndex(sqlite3_vtab *tab, sqlite3_index_info *pIdxInfo);
 
 
+extern sqlite3_module scatinterpolateModule;
+
+int scatinterpolateConnect(
+  sqlite3 *db,
+  void *pAux,
+  int argc, const char *const*argv,
+  sqlite3_vtab **ppVtab,
+  char **pzErr
+  );
+int scatinterpolateDisconnect(sqlite3_vtab *pVtab);
+int scatinterpolateOpen(sqlite3_vtab *p, sqlite3_vtab_cursor **ppCursor);
+int scatinterpolateClose(sqlite3_vtab_cursor *cur);
+int scatinterpolateNext(sqlite3_vtab_cursor *cur);
+int scatinterpolateColumn(sqlite3_vtab_cursor *cur, sqlite3_context *ctx, int i);
+int scatinterpolateRowid(sqlite3_vtab_cursor *cur, sqlite_int64 *pRowid);
+int scatinterpolateEof(sqlite3_vtab_cursor *cur);
+int scatinterpolateFilter(
+  sqlite3_vtab_cursor *pVtabCursor,
+  int idxNum, const char *idxStr,
+  int argc, sqlite3_value **argv
+  );
+int scatinterpolateBestIndex(sqlite3_vtab *tab, sqlite3_index_info *pIdxInfo);
+
+
 
 
 
