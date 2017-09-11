@@ -110,7 +110,7 @@ int histoConnect(
   // They won't show up in the SQL tables.
   rc = sqlite3_declare_vtab(db,
     // Order of columns MUST match the order of the above enum ColNum
-    "CREATE TABLE x(bin REAL, count INTEGER, accumcount INTEGER, " \
+    "CREATE TABLE x(bin REAL, bincount INTEGER, accumcount INTEGER, " \
   "tblname hidden, colid hidden, nbins hidden, minbin hidden, maxbin hidden)");
   if( rc==SQLITE_OK ){
     pNew = *ppVtab = (sqlite3_vtab *)sqlite3_malloc( sizeof(*pNew) );
