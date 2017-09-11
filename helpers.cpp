@@ -148,14 +148,15 @@ std::vector<interpolatebin> CalcInterpolations(std::vector< std::vector<double> 
         double shifted = XYvals[1][j] - shiftconst;
         shiftval[0][i] += shifted; // avoid numerical instability close to zero
         shiftval[1][i] += shifted*shifted;
-
         interpol[i].yval += XYvals[1][j];
-        //interpol[i].count++;
       }
     }
     interpol[i].yval /= interpol[i].count;
     interpol[i].sigma = sqrt( ( shiftval[1][i]
       - (shiftval[0][i] * shiftval[0][i])/interpol[i].count)/ interpol[i].count);
+    // Margin of Error (MOE) of a mean value is based on Z*sigma/sqrt(N)
+    // Z=1.96 corresponds to 95% confidence
+    interpol[i].moe = 1.96 * interpol[i].sigma / interpol[i].count;
   }
 
   return interpol;

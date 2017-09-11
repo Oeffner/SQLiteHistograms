@@ -27,13 +27,14 @@ struct histobin
 
 struct interpolatebin
 {
-  double xval, yval, sigma;
+  double xval, yval, sigma, moe;
   int count;
   interpolatebin(double x = 0, double y = 0, double s = 0, int c = 0)
   {
     xval = x;
     yval = y;
     count = c;
+    moe = 0.0; // Margin of Error (MOE) of a mean value is based on Z*sigma/sqrt(N)
   }
 };
 
