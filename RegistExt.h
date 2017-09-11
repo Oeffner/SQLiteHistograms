@@ -60,28 +60,28 @@ int ratiohistoFilter(
 int ratiohistoBestIndex(sqlite3_vtab *tab, sqlite3_index_info *pIdxInfo);
 
 
-extern sqlite3_module scatinterpolateModule;
+extern sqlite3_module meanhistoModule;
 
-int scatinterpolateConnect(
+int meanhistoConnect(
   sqlite3 *db,
   void *pAux,
   int argc, const char *const*argv,
   sqlite3_vtab **ppVtab,
   char **pzErr
   );
-int scatinterpolateDisconnect(sqlite3_vtab *pVtab);
-int scatinterpolateOpen(sqlite3_vtab *p, sqlite3_vtab_cursor **ppCursor);
-int scatinterpolateClose(sqlite3_vtab_cursor *cur);
-int scatinterpolateNext(sqlite3_vtab_cursor *cur);
-int scatinterpolateColumn(sqlite3_vtab_cursor *cur, sqlite3_context *ctx, int i);
-int scatinterpolateRowid(sqlite3_vtab_cursor *cur, sqlite_int64 *pRowid);
-int scatinterpolateEof(sqlite3_vtab_cursor *cur);
-int scatinterpolateFilter(
+int meanhistoDisconnect(sqlite3_vtab *pVtab);
+int meanhistoOpen(sqlite3_vtab *p, sqlite3_vtab_cursor **ppCursor);
+int meanhistoClose(sqlite3_vtab_cursor *cur);
+int meanhistoNext(sqlite3_vtab_cursor *cur);
+int meanhistoColumn(sqlite3_vtab_cursor *cur, sqlite3_context *ctx, int i);
+int meanhistoRowid(sqlite3_vtab_cursor *cur, sqlite_int64 *pRowid);
+int meanhistoEof(sqlite3_vtab_cursor *cur);
+int meanhistoFilter(
   sqlite3_vtab_cursor *pVtabCursor,
   int idxNum, const char *idxStr,
   int argc, sqlite3_value **argv
   );
-int scatinterpolateBestIndex(sqlite3_vtab *tab, sqlite3_index_info *pIdxInfo);
+int meanhistoBestIndex(sqlite3_vtab *tab, sqlite3_index_info *pIdxInfo);
 
 
 

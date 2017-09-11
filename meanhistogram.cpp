@@ -28,16 +28,16 @@ extern "C" {
 
 
 
-std::vector<interpolatebin> myscatinterpolatebins;
+std::vector<interpolatebin> mymeanhistobins;
 
 
 
-/* scatinterpolate_cursor is a subclass of sqlite3_vtab_cursor which will
+/* meanhisto_cursor is a subclass of sqlite3_vtab_cursor which will
 ** serve as the underlying representation of a cursor that scans
 ** over rows of the result
 */
-typedef struct scatinterpolate_cursor scatinterpolate_cursor;
-struct scatinterpolate_cursor {
+typedef struct meanhisto_cursor meanhisto_cursor;
+struct meanhisto_cursor {
   sqlite3_vtab_cursor base;  /* Base class - must be first */
   int isDesc;                /* True to count down rather than up */
   sqlite3_int64 iRowid;      /* The rowid */
@@ -57,20 +57,20 @@ struct scatinterpolate_cursor {
 
 enum ColNum
 { // Column numbers. The order determines the order of columns in the table output
-  SCATINTERPOL_X = 0,
-  SCATINTERPOL_Y,
-  SCATINTERPOL_SIGMA,
-  SCATINTERPOL_COUNT,
-  SCATINTERPOL_TBLNAME,
-  SCATINTERPOL_XCOLID,
-  SCATINTERPOL_YCOLID,
-  SCATINTERPOL_NBINS,
-  SCATINTERPOL_MINBIN,    
-  SCATINTERPOL_MAXBIN    
+  MEANHISTO_X = 0,
+  MEANHISTO_Y,
+  MEANHISTO_SIGMA,
+  MEANHISTO_COUNT,
+  MEANHISTO_TBLNAME,
+  MEANHISTO_XCOLID,
+  MEANHISTO_YCOLID,
+  MEANHISTO_NBINS,
+  MEANHISTO_MINBIN,    
+  MEANHISTO_MAXBIN    
 };
 
 
-int scatinterpolateConnect(
+int meanhistoConnect(
   sqlite3 *db,
   void *pAux,
   int argc, const char *const*argv,
@@ -79,12 +79,12 @@ int scatinterpolateConnect(
 ){
   sqlite3_vtab *pNew;
   int rc;
-/* The hidden columns serves as arguments to the SCATINTERPOL function as in:
-SELECT * FROM SCATINTERPOLATE('tblname', 'xcolid', 'ycolid', nbins, minbin, maxbin);
+/* The hidden columns serves as arguments to the MEANHISTO function as in:
+SELECT * FROM MEANHISTO('tblname', 'xcolid', 'ycolid', nbins, minbin, maxbin);
 They won't show up in the SQL tables.
 */
   rc = sqlite3_declare_vtab(db,
-  "CREATE TABLE x(x REAL, y REAL, sigma REAL, count INTEGER, " \
+  "CREATE TABLE x(bin REAL, yval REAL, sigma REAL, count INTEGER, " \
   "tblname hidden, xcolid hidden, ycolid hidden, nbins hidden, minbin hidden, maxbin hidden)");
   if( rc==SQLITE_OK ){
     pNew = *ppVtab = (sqlite3_vtab *)sqlite3_malloc( sizeof(*pNew) );
@@ -96,19 +96,19 @@ They won't show up in the SQL tables.
 }
 
 /*
-** This method is the destructor for scatinterpolate_cursor objects.
+** This method is the destructor for meanhisto_cursor objects.
 */
-int scatinterpolateDisconnect(sqlite3_vtab *pVtab){
+int meanhistoDisconnect(sqlite3_vtab *pVtab){
   sqlite3_free(pVtab);
   return SQLITE_OK;
 }
 
 /*
-** Constructor for a new scatinterpolate_cursor object.
+** Constructor for a new meanhisto_cursor object.
 */
-int scatinterpolateOpen(sqlite3_vtab *p, sqlite3_vtab_cursor **ppCursor){
-  scatinterpolate_cursor *pCur;
-  pCur = (scatinterpolate_cursor *)sqlite3_malloc( sizeof(*pCur) );
+int meanhistoOpen(sqlite3_vtab *p, sqlite3_vtab_cursor **ppCursor){
+  meanhisto_cursor *pCur;
+  pCur = (meanhisto_cursor *)sqlite3_malloc( sizeof(*pCur) );
   //pCur = sqlite3_malloc(sizeof(*pCur));
   if( pCur==0 ) return SQLITE_NOMEM;
   memset(pCur, 0, sizeof(*pCur));
@@ -117,52 +117,52 @@ int scatinterpolateOpen(sqlite3_vtab *p, sqlite3_vtab_cursor **ppCursor){
 }
 
 /*
-** Destructor for a scatinterpolate_cursor.
+** Destructor for a meanhisto_cursor.
 */
-int scatinterpolateClose(sqlite3_vtab_cursor *cur){
+int meanhistoClose(sqlite3_vtab_cursor *cur){
   sqlite3_free(cur);
   return SQLITE_OK;
 }
 
 
 /*
-** Advance a scatinterpolate_cursor to its next row of output.
+** Advance a meanhisto_cursor to its next row of output.
 */
-int scatinterpolateNext(sqlite3_vtab_cursor *cur){
-  scatinterpolate_cursor *pCur = (scatinterpolate_cursor*)cur;
+int meanhistoNext(sqlite3_vtab_cursor *cur){
+  meanhisto_cursor *pCur = (meanhisto_cursor*)cur;
   pCur->iRowid++;
   int i = pCur->iRowid - 1;
-  pCur->x = myscatinterpolatebins[i].xval;
-  pCur->y = myscatinterpolatebins[i].yval;
-  pCur->sigma = myscatinterpolatebins[i].sigma;
-  pCur->count = myscatinterpolatebins[i].count;
+  pCur->x = mymeanhistobins[i].xval;
+  pCur->y = mymeanhistobins[i].yval;
+  pCur->sigma = mymeanhistobins[i].sigma;
+  pCur->count = mymeanhistobins[i].count;
   return SQLITE_OK;
 }
 
 /*
-** Return values of columns for the row at which the scatinterpolate_cursor
+** Return values of columns for the row at which the meanhisto_cursor
 ** is currently pointing.
 */
-int scatinterpolateColumn(
+int meanhistoColumn(
   sqlite3_vtab_cursor *cur,   /* The cursor */
   sqlite3_context *ctx,       /* First argument to sqlite3_result_...() */
   int i                       /* Which column to return */
 ){
-  scatinterpolate_cursor *pCur = (scatinterpolate_cursor*)cur;
+  meanhisto_cursor *pCur = (meanhisto_cursor*)cur;
   sqlite3_int64 x = 123456;
   std::string c = "waffle";
   double d = -42.24;
   switch( i ){
-    case SCATINTERPOL_X:     d = pCur->x; sqlite3_result_double(ctx, d); break;
-    case SCATINTERPOL_Y:     d = pCur->y; sqlite3_result_double(ctx, d); break;
-    case SCATINTERPOL_SIGMA:     d = pCur->sigma; sqlite3_result_double(ctx, d); break;
-    case SCATINTERPOL_COUNT:   x = pCur->count; sqlite3_result_int64(ctx, x); break;
-    case SCATINTERPOL_TBLNAME: c = pCur->tblname; sqlite3_result_text(ctx, c.c_str(), -1, NULL);  break;
-    case SCATINTERPOL_XCOLID:   c = pCur->xcolid; sqlite3_result_text(ctx, c.c_str(), -1, NULL); break;
-    case SCATINTERPOL_YCOLID:   c = pCur->ycolid; sqlite3_result_text(ctx, c.c_str(), -1, NULL); break;
-    case SCATINTERPOL_NBINS:    x = pCur->nbins; sqlite3_result_double(ctx, x); break;
-    case SCATINTERPOL_MINBIN:  d = pCur->minbin; sqlite3_result_double(ctx, d); break;
-    case SCATINTERPOL_MAXBIN:  d = pCur->maxbin; sqlite3_result_double(ctx, d); break;
+    case MEANHISTO_X:     d = pCur->x; sqlite3_result_double(ctx, d); break;
+    case MEANHISTO_Y:     d = pCur->y; sqlite3_result_double(ctx, d); break;
+    case MEANHISTO_SIGMA:     d = pCur->sigma; sqlite3_result_double(ctx, d); break;
+    case MEANHISTO_COUNT:   x = pCur->count; sqlite3_result_int64(ctx, x); break;
+    case MEANHISTO_TBLNAME: c = pCur->tblname; sqlite3_result_text(ctx, c.c_str(), -1, NULL);  break;
+    case MEANHISTO_XCOLID:   c = pCur->xcolid; sqlite3_result_text(ctx, c.c_str(), -1, NULL); break;
+    case MEANHISTO_YCOLID:   c = pCur->ycolid; sqlite3_result_text(ctx, c.c_str(), -1, NULL); break;
+    case MEANHISTO_NBINS:    x = pCur->nbins; sqlite3_result_double(ctx, x); break;
+    case MEANHISTO_MINBIN:  d = pCur->minbin; sqlite3_result_double(ctx, d); break;
+    case MEANHISTO_MAXBIN:  d = pCur->maxbin; sqlite3_result_double(ctx, d); break;
     default:           sqlite3_result_double(ctx, 0); break;
   }
   return SQLITE_OK;
@@ -172,8 +172,8 @@ int scatinterpolateColumn(
 ** Return the rowid for the current row.  In this implementation, the
 ** rowid is the same as the output value.
 */
-int scatinterpolateRowid(sqlite3_vtab_cursor *cur, sqlite_int64 *pRowid){
-  scatinterpolate_cursor *pCur = (scatinterpolate_cursor*)cur;
+int meanhistoRowid(sqlite3_vtab_cursor *cur, sqlite_int64 *pRowid){
+  meanhisto_cursor *pCur = (meanhisto_cursor*)cur;
   *pRowid = pCur->iRowid;
   return SQLITE_OK;
 }
@@ -183,24 +183,24 @@ int scatinterpolateRowid(sqlite3_vtab_cursor *cur, sqlite_int64 *pRowid){
 ** row of output.
 */
 
-int scatinterpolateEof(sqlite3_vtab_cursor *cur) {
-  scatinterpolate_cursor *pCur = (scatinterpolate_cursor*)cur;
+int meanhistoEof(sqlite3_vtab_cursor *cur) {
+  meanhisto_cursor *pCur = (meanhisto_cursor*)cur;
   if (pCur->isDesc) {
     return pCur->iRowid < 1;
   }
   else {
-    return pCur->iRowid > myscatinterpolatebins.size();
+    return pCur->iRowid > mymeanhistobins.size();
   }
 }
 
 
 
-int scatinterpolateFilter(
+int meanhistoFilter(
   sqlite3_vtab_cursor *pVtabCursor, 
   int idxNum, const char *idxStr,
   int argc, sqlite3_value **argv
 ){
-  scatinterpolate_cursor *pCur = (scatinterpolate_cursor *)pVtabCursor;
+  meanhisto_cursor *pCur = (meanhisto_cursor *)pVtabCursor;
   int i = 0;
   pCur->tblname = "";
   pCur->xcolid = "";
@@ -209,7 +209,7 @@ int scatinterpolateFilter(
   pCur->minbin = 1.0;
   pCur->maxbin = 1.0;
 
-  if( idxNum >= SCATINTERPOL_MAXBIN)
+  if( idxNum >= MEANHISTO_MAXBIN)
   {
     pCur->tblname = (const char*)sqlite3_value_text(argv[i++]);
     pCur->xcolid = (const char*)sqlite3_value_text(argv[i++]);
@@ -220,19 +220,19 @@ int scatinterpolateFilter(
   }
   else 
   {
-    std::cerr << "Incorrect number of arguments for function SCATINTERPOL.\n" \
-     "SCATINTERPOL must be called as:\n SCATINTERPOL('tablename', 'xcolumnname', 'ycolumnname', nbins, minbin, maxbin)" << std::endl;
+    std::cerr << "Incorrect number of arguments for function MEANHISTO.\n" \
+     "MEANHISTO must be called as:\n MEANHISTO('tablename', 'xcolumnname', 'ycolumnname', nbins, minbin, maxbin)" << std::endl;
     return SQLITE_ERROR;
   }
   
   std::string s_exe("SELECT ");
   s_exe += pCur->xcolid + ", " + pCur->ycolid + " FROM " + pCur->tblname;
   std::vector< std::vector<double> > myXYs = GetColumns(thisdb, s_exe);
-  myscatinterpolatebins = CalcInterpolations(myXYs, pCur->nbins, pCur->minbin, pCur->maxbin);
-  pCur->x = myscatinterpolatebins[0].xval;
-  pCur->y = myscatinterpolatebins[0].yval;
-  pCur->sigma = myscatinterpolatebins[0].sigma;
-  pCur->count = myscatinterpolatebins[0].count;
+  mymeanhistobins = CalcInterpolations(myXYs, pCur->nbins, pCur->minbin, pCur->maxbin);
+  pCur->x = mymeanhistobins[0].xval;
+  pCur->y = mymeanhistobins[0].yval;
+  pCur->sigma = mymeanhistobins[0].sigma;
+  pCur->count = mymeanhistobins[0].count;
   pCur->isDesc = 0;
   pCur->iRowid = 1;
 
@@ -240,7 +240,7 @@ int scatinterpolateFilter(
 }
 
 
-int scatinterpolateBestIndex(
+int meanhistoBestIndex(
   sqlite3_vtab *tab,
   sqlite3_index_info *pIdxInfo
 ){
@@ -252,7 +252,7 @@ int scatinterpolateBestIndex(
   int binsidx = -1;      /* Index of the step= constraint, or -1 if none */
   int minbinidx = -1;
   int maxbinidx = -1;
-  int nArg = 0;          /* Number of arguments that scatinterpolateFilter() expects */
+  int nArg = 0;          /* Number of arguments that meanhistoFilter() expects */
 
   sqlite3_index_info::sqlite3_index_constraint *pConstraint;
   pConstraint = pIdxInfo->aConstraint;
@@ -260,29 +260,29 @@ int scatinterpolateBestIndex(
     if( pConstraint->usable==0 ) continue;
     if( pConstraint->op!=SQLITE_INDEX_CONSTRAINT_EQ ) continue;
     switch( pConstraint->iColumn ){
-      case SCATINTERPOL_TBLNAME:
+      case MEANHISTO_TBLNAME:
         tblnameidx = i;
-        idxNum = SCATINTERPOL_TBLNAME;
+        idxNum = MEANHISTO_TBLNAME;
         break;
-      case SCATINTERPOL_XCOLID:
+      case MEANHISTO_XCOLID:
         xcolididx = i;
-        idxNum = SCATINTERPOL_XCOLID;
+        idxNum = MEANHISTO_XCOLID;
         break;
-      case SCATINTERPOL_YCOLID:
+      case MEANHISTO_YCOLID:
         ycolididx = i;
-        idxNum = SCATINTERPOL_YCOLID;
+        idxNum = MEANHISTO_YCOLID;
         break;
-      case SCATINTERPOL_NBINS:
+      case MEANHISTO_NBINS:
         binsidx = i;
-        idxNum = SCATINTERPOL_NBINS;
+        idxNum = MEANHISTO_NBINS;
         break;
-      case SCATINTERPOL_MINBIN:
+      case MEANHISTO_MINBIN:
         minbinidx = i;
-        idxNum = SCATINTERPOL_MINBIN;
+        idxNum = MEANHISTO_MINBIN;
         break;
-      case SCATINTERPOL_MAXBIN:
+      case MEANHISTO_MAXBIN:
         maxbinidx = i;
-        idxNum = SCATINTERPOL_MAXBIN;
+        idxNum = MEANHISTO_MAXBIN;
         break;
     }
   }
@@ -324,22 +324,22 @@ int scatinterpolateBestIndex(
 
 /*
 ** This following structure defines all the methods for the
-** generate_scatinterpolate virtual table.
+** generate_meanhisto virtual table.
 */
-sqlite3_module scatinterpolateModule = {
+sqlite3_module meanhistoModule = {
   0,                         /* iVersion */
   0,                         /* xCreate */
-  scatinterpolateConnect,             /* xConnect */
-  scatinterpolateBestIndex,           /* xBestIndex */
-  scatinterpolateDisconnect,          /* xDisconnect */
+  meanhistoConnect,             /* xConnect */
+  meanhistoBestIndex,           /* xBestIndex */
+  meanhistoDisconnect,          /* xDisconnect */
   0,                         /* xDestroy */
-  scatinterpolateOpen,                /* xOpen - open a cursor */
-  scatinterpolateClose,               /* xClose - close a cursor */
-  scatinterpolateFilter,              /* xFilter - configure scan constraints */
-  scatinterpolateNext,                /* xNext - advance a cursor */
-  scatinterpolateEof,                 /* xEof - check for end of scan */
-  scatinterpolateColumn,              /* xColumn - read data */
-  scatinterpolateRowid,               /* xRowid - read data */
+  meanhistoOpen,                /* xOpen - open a cursor */
+  meanhistoClose,               /* xClose - close a cursor */
+  meanhistoFilter,              /* xFilter - configure scan constraints */
+  meanhistoNext,                /* xNext - advance a cursor */
+  meanhistoEof,                 /* xEof - check for end of scan */
+  meanhistoColumn,              /* xColumn - read data */
+  meanhistoRowid,               /* xRowid - read data */
   0,                         /* xUpdate */
   0,                         /* xBegin */
   0,                         /* xSync */

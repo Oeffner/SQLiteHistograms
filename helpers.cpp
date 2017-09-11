@@ -113,7 +113,7 @@ std::vector<interpolatebin> CalcInterpolations(std::vector< std::vector<double> 
   shiftval.resize(2);
   shiftval[0].resize(bins);
   shiftval[1].resize(bins);
-  double shiftconst = 123.321;
+  //double shiftconst = 123.321;
 
   std::vector<interpolatebin> interpol;
   interpol.resize(bins);
@@ -126,17 +126,31 @@ std::vector<interpolatebin> CalcInterpolations(std::vector< std::vector<double> 
     double lower = binwidth * i + minbin;
     interpol[i].xval = middle;
     interpol[i].count = 0;
+    // first calculate shiftconst used for avoiding numerical instability
+    // by assigning it to the mean value of values in the bin
+    double shiftconst = 0;
+    for (unsigned j = 0; j < XYvals[0].size(); j++)
+    {
+      if (XYvals[0][j] >= lower && XYvals[0][j] < upper)
+      {
+        shiftconst = XYvals[1][j];
+        interpol[i].count++;
+      }
+    }
+    if (interpol[i].count)
+      shiftconst /= interpol[i].count;
+
     shiftval[0][i] = shiftval[1][i] = 0.0;
     for (unsigned j = 0; j < XYvals[0].size(); j++)
     {
       if (XYvals[0][j] >= lower && XYvals[0][j] < upper)
       {
-        double shifted = XYvals[1][j] + shiftconst;
+        double shifted = XYvals[1][j] - shiftconst;
         shiftval[0][i] += shifted; // avoid numerical instability close to zero
         shiftval[1][i] += shifted*shifted;
 
         interpol[i].yval += XYvals[1][j];
-        interpol[i].count++;
+        //interpol[i].count++;
       }
     }
     interpol[i].yval /= interpol[i].count;
