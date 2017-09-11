@@ -44,7 +44,7 @@ struct meanhisto_cursor {
   double         x;
   double         y;
   double         sigma;
-  double         moe;
+  double         sem;
   sqlite3_int64  count;
   std::string    tblname;
   std::string    xcolid;
@@ -61,7 +61,7 @@ enum ColNum
   MEANHISTO_X = 0,
   MEANHISTO_Y,
   MEANHISTO_SIGMA,
-  MEANHISTO_MOE,
+  MEANHISTO_SEM,
   MEANHISTO_COUNT,
   MEANHISTO_TBLNAME,
   MEANHISTO_XCOLID,
@@ -86,7 +86,8 @@ SELECT * FROM MEANHISTO('tblname', 'xcolid', 'ycolid', nbins, minbin, maxbin);
 They won't show up in the SQL tables.
 */
   rc = sqlite3_declare_vtab(db,
-  "CREATE TABLE x(bin REAL, yval REAL, sigma REAL, MOE REAL, count INTEGER, " \
+// Order of columns MUST match the order of the above enum ColNum
+  "CREATE TABLE x(bin REAL, yval REAL, sigma REAL, sem REAL, count INTEGER, " \
   "tblname hidden, xcolid hidden, ycolid hidden, nbins hidden, minbin hidden, maxbin hidden)");
   if( rc==SQLITE_OK ){
     pNew = *ppVtab = (sqlite3_vtab *)sqlite3_malloc( sizeof(*pNew) );
@@ -137,7 +138,7 @@ int meanhistoNext(sqlite3_vtab_cursor *cur){
   pCur->x = mymeanhistobins[i].xval;
   pCur->y = mymeanhistobins[i].yval;
   pCur->sigma = mymeanhistobins[i].sigma;
-  pCur->moe = mymeanhistobins[i].moe;
+  pCur->sem = mymeanhistobins[i].sem;
   pCur->count = mymeanhistobins[i].count;
   return SQLITE_OK;
 }
@@ -159,7 +160,7 @@ int meanhistoColumn(
     case MEANHISTO_X:     d = pCur->x; sqlite3_result_double(ctx, d); break;
     case MEANHISTO_Y:     d = pCur->y; sqlite3_result_double(ctx, d); break;
     case MEANHISTO_SIGMA:     d = pCur->sigma; sqlite3_result_double(ctx, d); break;
-    case MEANHISTO_MOE:     d = pCur->moe; sqlite3_result_double(ctx, d); break;
+    case MEANHISTO_SEM:     d = pCur->sem; sqlite3_result_double(ctx, d); break;
     case MEANHISTO_COUNT:   x = pCur->count; sqlite3_result_int64(ctx, x); break;
     case MEANHISTO_TBLNAME: c = pCur->tblname; sqlite3_result_text(ctx, c.c_str(), -1, NULL);  break;
     case MEANHISTO_XCOLID:   c = pCur->xcolid; sqlite3_result_text(ctx, c.c_str(), -1, NULL); break;
@@ -236,7 +237,7 @@ int meanhistoFilter(
   pCur->x = mymeanhistobins[0].xval;
   pCur->y = mymeanhistobins[0].yval;
   pCur->sigma = mymeanhistobins[0].sigma;
-  pCur->moe = mymeanhistobins[0].moe;
+  pCur->sem = mymeanhistobins[0].sem;
   pCur->count = mymeanhistobins[0].count;
   pCur->isDesc = 0;
   pCur->iRowid = 1;

@@ -156,7 +156,7 @@ std::vector<interpolatebin> CalcInterpolations(std::vector< std::vector<double> 
       - (shiftval[0][i] * shiftval[0][i])/interpol[i].count)/ interpol[i].count);
     // Margin of Error (MOE) of a mean value is based on Z*sigma/sqrt(N)
     // Z=1.96 corresponds to 95% confidence
-    interpol[i].moe = 1.96 * interpol[i].sigma / interpol[i].count;
+    interpol[i].sem = interpol[i].sigma/sqrt(interpol[i].count);
   }
 
   return interpol;

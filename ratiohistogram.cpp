@@ -117,7 +117,8 @@ int ratiohistoConnect(
   // SELECT * FROM RATIOHISTO('tblname', 'colid', nbins, minbin, maxbin, 'discrcolid', discrval);
   // They won't show up in the SQL tables.
   rc = sqlite3_declare_vtab(db,
-  "CREATE TABLE x(bin REAL, count1 INTEGER, count2 INTEGER, ratio REAL, totalcount INTEGER, " \
+    // Order of columns MUST match the order of the above enum ColNum
+    "CREATE TABLE x(bin REAL, count1 INTEGER, count2 INTEGER, ratio REAL, totalcount INTEGER, " \
   "tblname hidden, colid hidden, nbins hidden, minbin hidden, maxbin hidden, discrcolid hidden, discrval hidden)");
   if( rc==SQLITE_OK ){
     pNew = *ppVtab = (sqlite3_vtab *)sqlite3_malloc( sizeof(*pNew) );
