@@ -1,6 +1,6 @@
 
 #include "sqlite3ext.h"
-
+#include <cstddef>
 
 
 #ifdef __cplusplus
@@ -8,8 +8,9 @@ extern "C" {
 #endif
 
 extern const sqlite3_api_routines *sqlite3_api;
-
 extern sqlite3 *thisdb;
+
+
 
 extern sqlite3_module histoModule;
 
@@ -33,6 +34,7 @@ int histoFilter(
   int argc, sqlite3_value **argv
   );
 int histoBestIndex(sqlite3_vtab *tab, sqlite3_index_info *pIdxInfo);
+
 
 
 
@@ -60,6 +62,7 @@ int ratiohistoFilter(
 int ratiohistoBestIndex(sqlite3_vtab *tab, sqlite3_index_info *pIdxInfo);
 
 
+
 extern sqlite3_module meanhistoModule;
 
 int meanhistoConnect(
@@ -82,9 +85,6 @@ int meanhistoFilter(
   int argc, sqlite3_value **argv
   );
 int meanhistoBestIndex(sqlite3_vtab *tab, sqlite3_index_info *pIdxInfo);
-
-
-
 
 
 

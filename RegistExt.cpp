@@ -1,6 +1,8 @@
 /*
 RegistExt.cpp, Robert Oeffner 2017
 
+Compile on Windows:
+
 cl /Fohelpers.obj /c helpers.cpp /EHsc ^
  && cl /Foratiohistogram.obj /c ratiohistogram.cpp /EHsc ^
  && cl /Fohistogram.obj /c histogram.cpp /EHsc ^
@@ -17,10 +19,14 @@ cl /Fohelpers.obj /c helpers.cpp /DDEBUG  /ZI /EHsc ^
  && cl /FoRegistExt.obj /c RegistExt.cpp  /DDEBUG  /ZI /EHsc ^
  && link /DLL /DEBUG /debugtype:cv /OUT:histograms.sqlext helpers.obj meanhistogram.obj RegistExt.obj histogram.obj ratiohistogram.obj
 
+ 
+Compile on Linux:
+
+ g++ -fPIC -lm -shared histogram.cpp helpers.cpp meanhistogram.cpp ratiohistogram.cpp RegistExt.cpp -o libhistograms.so
+
 */
 
 #include "RegistExt.h"
-
 
 
 

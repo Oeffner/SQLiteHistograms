@@ -26,11 +26,10 @@ g++ -fPIC -lm -shared histogram.cpp -o libhistogram.so
 #include "RegistExt.h"
 #include "helpers.h"
 #include <assert.h>
-#include <string.h>
+#include <memory.h>
 
 
 #ifndef SQLITE_OMIT_VIRTUALTABLE
-
 
 
 
@@ -134,10 +133,9 @@ int histoDisconnect(sqlite3_vtab *pVtab){
 */
 int histoOpen(sqlite3_vtab *p, sqlite3_vtab_cursor **ppCursor){
   histo_cursor *pCur;
-  pCur = (histo_cursor *)sqlite3_malloc( sizeof(*pCur) );
-  //pCur = sqlite3_malloc(sizeof(*pCur));
-  if( pCur==0 ) return SQLITE_NOMEM;
-  memset(pCur, 0, sizeof(*pCur));
+  // allocate c++ object with new rather than sqlite3_malloc which doesn't call constructors
+  pCur = new histo_cursor; 
+  if( pCur==NULL ) return SQLITE_NOMEM;
   *ppCursor = &pCur->base;
   return SQLITE_OK;
 }
@@ -146,7 +144,7 @@ int histoOpen(sqlite3_vtab *p, sqlite3_vtab_cursor **ppCursor){
 ** Destructor for a histo_cursor.
 */
 int histoClose(sqlite3_vtab_cursor *cur){
-  sqlite3_free(cur);
+  delete cur;
   return SQLITE_OK;
 }
 
@@ -236,7 +234,7 @@ int histoFilter(
   int argc, sqlite3_value **argv
 ){
   histo_cursor *pCur = (histo_cursor *)pVtabCursor;
-  int i = 0;
+  int i = 0; 
   pCur->tblname = "";
   pCur->colid = "";
   pCur->nbins = 1.0;
@@ -257,7 +255,7 @@ int histoFilter(
      "HISTO must be called as:\n HISTO('tablename', 'columnname', nbins, minbin, maxbin)" << std::endl;
     return SQLITE_ERROR;
   }
-  
+
   std::vector< std::vector<double> > mybins;
   std::string s_exe("SELECT ");
   s_exe += pCur->colid + " FROM " + pCur->tblname;

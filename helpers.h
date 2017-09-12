@@ -6,10 +6,11 @@ helpers.h, Robert Oeffner 2017
 #include <iostream>
 #include <vector>
 #include <cstdlib>
+#include <math.h>
 
 #include "RegistExt.h"
 #include <assert.h>
-#include <string.h>
+#include <memory.h>
 
 
 struct histobin
@@ -34,7 +35,7 @@ struct interpolatebin
     xval = x;
     yval = y;
     count = c;
-    sem = 0.0; // Standard Error of Mean(SEM) is sigma/sqrt(N)
+    sem = sigma = 0.0; // Standard Error of Mean (SEM) is sigma/sqrt(N)
     // Margin of error is then Z*sigma/sqrt(N) for a given Z score
   }
 };

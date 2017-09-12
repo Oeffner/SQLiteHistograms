@@ -119,6 +119,8 @@ std::vector<interpolatebin> CalcInterpolations(std::vector< std::vector<double> 
   interpol.resize(bins);
   double bindomain = maxbin - minbin;
   double binwidth = bindomain / bins;
+  if (XYvals.size() < 1)
+    return interpol;
   for (unsigned i = 0; i < interpol.size(); i++)
   {
     double upper = binwidth * (i + 1) + minbin;

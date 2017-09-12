@@ -26,7 +26,7 @@ g++ -fPIC -lm -shared histogram.cpp -o libhistogram.so
 #include "RegistExt.h"
 #include "helpers.h"
 #include <assert.h>
-#include <string.h>
+#include <memory.h>
 
 
 #ifndef SQLITE_OMIT_VIRTUALTABLE
@@ -142,10 +142,9 @@ int ratiohistoDisconnect(sqlite3_vtab *pVtab){
 */
 int ratiohistoOpen(sqlite3_vtab *p, sqlite3_vtab_cursor **ppCursor){
   ratiohisto_cursor *pCur;
-  pCur = (ratiohisto_cursor *)sqlite3_malloc( sizeof(*pCur) );
-  //pCur = sqlite3_malloc(sizeof(*pCur));
-  if( pCur==0 ) return SQLITE_NOMEM;
-  memset(pCur, 0, sizeof(*pCur));
+  // allocate c++ object with new rather than sqlite3_malloc which doesn't call constructors
+  pCur = new ratiohisto_cursor;
+  if (pCur == NULL) return SQLITE_NOMEM;
   *ppCursor = &pCur->base;
   return SQLITE_OK;
 }
@@ -154,7 +153,7 @@ int ratiohistoOpen(sqlite3_vtab *p, sqlite3_vtab_cursor **ppCursor){
 ** Destructor for a ratiohisto_cursor.
 */
 int ratiohistoClose(sqlite3_vtab_cursor *cur){
-  sqlite3_free(cur);
+  delete cur;
   return SQLITE_OK;
 }
 
