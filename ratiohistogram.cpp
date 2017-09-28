@@ -282,7 +282,7 @@ int ratiohistoFilter(
   int argc, sqlite3_value **argv
 ){
   ratiohisto_cursor *pCur = (ratiohisto_cursor *)pVtabCursor;
-  int i = 0;
+  int i = 0, rc = SQLITE_OK;
   pCur->tblname = "";
   pCur->colid = "";
   pCur->nbins = 1.0;
@@ -306,9 +306,8 @@ int ratiohistoFilter(
   }
   else 
   {
-    std::cerr << "Incorrect number of arguments for function RATIOHISTO.\n" \
-     "RATIOHISTO must be called either as:\n RATIOHISTO('tablename', 'columnname', nbins, minbin, maxbin)\n" \
-     "or as:\n RATIOHISTO('tablename', 'columnname', nbins, minbin, maxbin, 'discrcolid', discrval)"
+    std::cerr << "Incorrect arguments for function RATIOHISTO which must be called as:\n" \
+     "RATIOHISTO('tablename', 'columnname', nbins, minbin, maxbin, 'discrcolid', discrval)"
      << std::endl;
     return SQLITE_ERROR;
   }
@@ -317,9 +316,16 @@ int ratiohistoFilter(
   std::string s_exe("SELECT ");
   s_exe += pCur->colid + " FROM " + pCur->tblname;
   mybins.clear();
-  mybins = GetColumns(thisdb, s_exe);
-  myratiohistogram1 = CalcHistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin);
-  myratiohistogram2.resize(pCur->nbins);
+	mybins = GetColumns(thisdb, s_exe, &rc);
+	if (rc != SQLITE_OK)
+	{
+		std::cerr << sqlite3_errmsg(thisdb) << std::endl;
+		return rc;
+	}
+	myratiohistogram1 = CalcHistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin, &rc);
+	if (rc != SQLITE_OK)
+		return rc;
+	myratiohistogram2.resize(pCur->nbins);
   pCur->totalcount = myratiohistogram1[0].count;
   pCur->ratio = 0.0;
 
@@ -329,15 +335,29 @@ int ratiohistoFilter(
     s_exe += pCur->colid + " FROM " + pCur->tblname
       + " WHERE " + pCur->discrcolid + " >= " + pCur->discrval;
     mybins.clear();
-    mybins = GetColumns(thisdb, s_exe);
-    myratiohistogram1 = CalcHistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin);
-    
+		mybins = GetColumns(thisdb, s_exe, &rc);
+		if (rc != SQLITE_OK)
+		{
+			std::cerr << sqlite3_errmsg(thisdb) << std::endl;
+			return rc;
+		}
+		myratiohistogram1 = CalcHistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin, &rc);
+		if (rc != SQLITE_OK)
+			return rc;
+
     // get second ratiohistogram where values are below discrval
     s_exe = "SELECT " + pCur->colid + " FROM " + pCur->tblname
       + " WHERE " + pCur->discrcolid + " < " + pCur->discrval;
     mybins.clear();
-    mybins = GetColumns(thisdb, s_exe);
-    myratiohistogram2 = CalcHistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin);
+		mybins = GetColumns(thisdb, s_exe, &rc);
+		if (rc != SQLITE_OK)
+		{
+			std::cerr << sqlite3_errmsg(thisdb) << std::endl;
+			return rc;
+		}
+		myratiohistogram2 = CalcHistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin, &rc);
+		if (rc != SQLITE_OK)
+			return rc;
   }
   pCur->bin = myratiohistogram1[0].binval;
   pCur->count1 = myratiohistogram1[0].count;
@@ -349,7 +369,7 @@ int ratiohistoFilter(
   pCur->isDesc = 0;
   pCur->iRowid = 1;
 
-  return SQLITE_OK;
+  return rc;
 }
 
 

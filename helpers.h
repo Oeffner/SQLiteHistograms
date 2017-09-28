@@ -41,13 +41,13 @@ struct interpolatebin
 };
 
 
-std::vector< std::vector<double> > GetColumns(sqlite3* db, std::string sqlxprs);
+std::vector< std::vector<double> > GetColumns(sqlite3* db, std::string sqlxprs, int *rc);
 
 std::vector<histobin> CalcHistogram(std::vector< std::vector<double> > Yvals,
-  int bins, double minbin, double maxbin);
+  int bins, double minbin, double maxbin, int *rc);
 
 std::vector<interpolatebin> CalcInterpolations(std::vector< std::vector<double> > XYvals, 
-  int bins, double minbin, double maxbin);
+  int bins, double minbin, double maxbin, int *rc);
 
 
 

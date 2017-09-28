@@ -8,15 +8,14 @@ helpers.cpp, Robert Oeffner 2017
 
 
 
-std::vector< std::vector<double> > GetColumns(sqlite3* db, std::string sqlxprs)
+std::vector< std::vector<double> > GetColumns(sqlite3* db, std::string sqlxprs, int *rc)
 {
   // get column from sql expression and return it 
   char *zErrMsg;
   char **result;
-  int rc;
   int nrow, ncol;
   int db_open;
-  rc = sqlite3_get_table(
+  *rc = sqlite3_get_table(
     db,              /* An open database */
     sqlxprs.c_str(),       /* SQL to be executed */
     &result,       /* Result written to a char *[]  that this points to */
@@ -50,7 +49,7 @@ std::vector< std::vector<double> > GetColumns(sqlite3* db, std::string sqlxprs)
   {
     columns[n].resize(nrow);
   }
-  if (rc == SQLITE_OK) {
+  if (*rc == SQLITE_OK) {
     for (int i = 0; i < nrow*ncol; i++)
     {
       int col = i % ncol;
@@ -68,13 +67,21 @@ std::vector< std::vector<double> > GetColumns(sqlite3* db, std::string sqlxprs)
 }
 
 
+
 /* Caclulate a histogram from the col array with bins number of bins and values between
 minbin and maxbin
 */
 std::vector<histobin> CalcHistogram(std::vector< std::vector<double> > Yvals, 
-                                     int bins, double minbin, double maxbin)
+                                     int bins, double minbin, double maxbin, int *rc)
 {
   std::vector<histobin> histo;
+
+	if (bins < 1 || minbin >= maxbin)
+	{
+		std::cerr << "Nonsensical value for either bins, minbin or maxbin" << std::endl;
+		*rc = SQLITE_ERROR;
+		return histo;
+	}
 
   histo.resize(bins);
   double bindomain = maxbin - minbin;
@@ -103,19 +110,27 @@ std::vector<histobin> CalcHistogram(std::vector< std::vector<double> > Yvals,
 };
 
 
-/* Caclulate interpolation values for scatter data within bin values between
+/* Calculate interpolation values for scatter data within bin values between
 minbin and maxbin
 */
 std::vector<interpolatebin> CalcInterpolations(std::vector< std::vector<double> > XYvals, 
-                                               int bins, double minbin, double maxbin)
+                                          int bins, double minbin, double maxbin, int *rc)
 {
-  std::vector< std::vector<double> > shiftval;
+	std::vector<interpolatebin> interpol;
+	std::vector< std::vector<double> > shiftval;
+
+	if (bins < 1 || minbin >= maxbin)
+	{
+		std::cerr << "Nonsensical value for either bins, minbin or maxbin" << std::endl;
+		*rc = SQLITE_ERROR;
+		return interpol;
+	}
+
   shiftval.resize(2);
   shiftval[0].resize(bins);
   shiftval[1].resize(bins);
   //double shiftconst = 123.321;
 
-  std::vector<interpolatebin> interpol;
   interpol.resize(bins);
   double bindomain = maxbin - minbin;
   double binwidth = bindomain / bins;

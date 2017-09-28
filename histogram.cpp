@@ -234,7 +234,7 @@ int histoFilter(
   int argc, sqlite3_value **argv
 ){
   histo_cursor *pCur = (histo_cursor *)pVtabCursor;
-  int i = 0; 
+  int i = 0, rc = SQLITE_OK;
   pCur->tblname = "";
   pCur->colid = "";
   pCur->nbins = 1.0;
@@ -251,8 +251,8 @@ int histoFilter(
   }
   else 
   {
-    std::cerr << "Incorrect number of arguments for function HISTO.\n" \
-     "HISTO must be called as:\n HISTO('tablename', 'columnname', nbins, minbin, maxbin)" << std::endl;
+    std::cerr << "Incorrect arguments for function HISTO which must be called as:\n" \
+     " HISTO('tablename', 'columnname', nbins, minbin, maxbin)" << std::endl;
     return SQLITE_ERROR;
   }
 
@@ -260,15 +260,23 @@ int histoFilter(
   std::string s_exe("SELECT ");
   s_exe += pCur->colid + " FROM " + pCur->tblname;
   mybins.clear();
-  mybins = GetColumns(thisdb, s_exe);
-  myhistogram1 = CalcHistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin);
-  pCur->bin = myhistogram1[0].binval;
-  pCur->count1 = myhistogram1[0].count;
-  pCur->count2 = myhistogram1[0].accumcount;
-  pCur->isDesc = 0;
-  pCur->iRowid = 1;
+	mybins = GetColumns(thisdb, s_exe, &rc);
+	if (rc != SQLITE_OK)
+	{
+		std::cerr << sqlite3_errmsg(thisdb) << std::endl;
+		return rc;
+	}
+	myhistogram1 = CalcHistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin, &rc);
+	if (rc != SQLITE_OK)
+		return rc;
 
-  return SQLITE_OK;
+	pCur->bin = myhistogram1[0].binval;
+	pCur->count1 = myhistogram1[0].count;
+	pCur->count2 = myhistogram1[0].accumcount;
+	pCur->isDesc = 0;
+	pCur->iRowid = 1;
+
+  return rc;
 }
 
 

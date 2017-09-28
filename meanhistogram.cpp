@@ -205,7 +205,7 @@ int meanhistoFilter(
   int argc, sqlite3_value **argv
 ){
   meanhisto_cursor *pCur = (meanhisto_cursor *)pVtabCursor;
-  int i = 0;
+  int i = 0, rc = SQLITE_OK;
   pCur->tblname = "";
   pCur->xcolid = "";
   pCur->ycolid = "";
@@ -224,15 +224,23 @@ int meanhistoFilter(
   }
   else 
   {
-    std::cerr << "Incorrect number of arguments for function MEANHISTO.\n" \
-     "MEANHISTO must be called as:\n MEANHISTO('tablename', 'xcolumnname', 'ycolumnname', nbins, minbin, maxbin)" << std::endl;
+    std::cerr << "Incorrect arguments for function MEANHISTO which must be called as:\n" \
+     " MEANHISTO('tablename', 'xcolumnname', 'ycolumnname', nbins, minbin, maxbin)" << std::endl;
     return SQLITE_ERROR;
   }
   
   std::string s_exe("SELECT ");
   s_exe += pCur->xcolid + ", " + pCur->ycolid + " FROM " + pCur->tblname;
-  std::vector< std::vector<double> > myXYs = GetColumns(thisdb, s_exe);
-  mymeanhistobins = CalcInterpolations(myXYs, pCur->nbins, pCur->minbin, pCur->maxbin);
+  std::vector< std::vector<double> > myXYs = GetColumns(thisdb, s_exe, &rc);
+	if (rc != SQLITE_OK)
+	{
+		std::cerr << sqlite3_errmsg(thisdb) << std::endl;
+		return rc;
+	}
+	mymeanhistobins = CalcInterpolations(myXYs, pCur->nbins, pCur->minbin, pCur->maxbin, &rc);
+	if (rc != SQLITE_OK)
+		return rc;
+
   pCur->x = mymeanhistobins[0].xval;
   pCur->y = mymeanhistobins[0].yval;
   pCur->sigma = mymeanhistobins[0].sigma;
