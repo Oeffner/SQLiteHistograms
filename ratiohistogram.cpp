@@ -1,21 +1,30 @@
 /*
-
 ratiohistogram.cpp, Robert Oeffner 2017
+
 SQLite extension for calculating ratiohistogram of column values as well as calculating ratios of 
 two histograms deduced from the same table.
 
+The MIT License (MIT)
 
-Compiles with command line:
+Copyright (c) 2017 Robert Oeffner
 
-On Windows with MSVC++:
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-cl /Gd ..\MySqliteExtentions\histogram.cpp /I sqlite3 /DDLL /EHsc /LD /link /export:sqlite3_histogram_init /out:histogram.sqlext
-For debugging:
-cl /Gd ..\MySqliteExtentions\histogram.cpp /I sqlite3 /DDEBUG  /ZI /DDLL /EHsc /LD /link /debugtype:cv /export:sqlite3_histogram_init /out:histogram.sqlext
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-On Linux with g++:
-
-g++ -fPIC -lm -shared histogram.cpp -o libhistogram.so
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
 */
 
@@ -72,7 +81,9 @@ struct ratiohisto_cursor {
 
 
 enum ColNum
-{ // Column numbers. The order determines the order of columns in the table output
+{ /* Column numbers. The order determines the order of columns in the table output
+  and must match the order of columns in the CREATE TABLE statement below
+  */
   RATIOHISTO_BIN = 0,
   RATIOHISTO_COUNT1,
   RATIOHISTO_COUNT2, 
@@ -110,7 +121,8 @@ int ratiohistoConnect(
   int argc, const char *const*argv,
   sqlite3_vtab **ppVtab,
   char **pzErr
-){
+)
+{
   sqlite3_vtab *pNew;
   int rc;
   // The hidden columns serves as arguments to the RATIOHISTO function as in:
@@ -120,7 +132,8 @@ int ratiohistoConnect(
     // Order of columns MUST match the order of the above enum ColNum
     "CREATE TABLE x(bin REAL, count1 INTEGER, count2 INTEGER, ratio REAL, totalcount INTEGER, " \
   "tblname hidden, colid hidden, nbins hidden, minbin hidden, maxbin hidden, discrcolid hidden, discrval hidden)");
-  if( rc==SQLITE_OK ){
+  if( rc==SQLITE_OK )
+  {
     pNew = *ppVtab = (sqlite3_vtab *)sqlite3_malloc( sizeof(*pNew) );
     if( pNew==0 ) return SQLITE_NOMEM;
     memset(pNew, 0, sizeof(*pNew));
@@ -291,24 +304,21 @@ int ratiohistoFilter(
   pCur->discrcolid = "";
   pCur->discrval = "0.0";
 
-  if( idxNum >= RATIOHISTO_MAXBIN && idxNum != RATIOHISTO_DISCRCOLID)
+  if (idxNum >= RATIOHISTO_DISCRVAL)
   {
     pCur->tblname = (const char*)sqlite3_value_text(argv[i++]);
     pCur->colid = (const char*)sqlite3_value_text(argv[i++]);
     pCur->nbins = sqlite3_value_double(argv[i++]);
     pCur->minbin = sqlite3_value_double(argv[i++]);
     pCur->maxbin = sqlite3_value_double(argv[i++]);
-    if (idxNum >= RATIOHISTO_DISCRVAL)
-    {
-      pCur->discrcolid = (const char*)sqlite3_value_text(argv[i++]);
-      pCur->discrval = (const char*)sqlite3_value_text(argv[i++]);
-    }
+    pCur->discrcolid = (const char*)sqlite3_value_text(argv[i++]);
+    pCur->discrval = (const char*)sqlite3_value_text(argv[i++]);
   }
   else 
   {
-    std::cerr << "Incorrect arguments for function RATIOHISTO which must be called as:\n" \
-     "RATIOHISTO('tablename', 'columnname', nbins, minbin, maxbin, 'discrcolid', discrval)"
-     << std::endl;
+    const char *zText = "Incorrect arguments for function RATIOHISTO which must be called as:\n" \
+      "RATIOHISTO('tablename', 'columnname', nbins, minbin, maxbin, 'discrcolid', discrval)\n";
+    pCur->base.pVtab->zErrMsg = sqlite3_mprintf(zText);
     return SQLITE_ERROR;
   }
   
@@ -319,7 +329,7 @@ int ratiohistoFilter(
 	mybins = GetColumns(thisdb, s_exe, &rc);
 	if (rc != SQLITE_OK)
 	{
-		std::cerr << sqlite3_errmsg(thisdb) << std::endl;
+    pCur->base.pVtab->zErrMsg = sqlite3_mprintf(sqlite3_errmsg(thisdb));
 		return rc;
 	}
 	myratiohistogram1 = CalcHistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin, &rc);
@@ -338,7 +348,7 @@ int ratiohistoFilter(
 		mybins = GetColumns(thisdb, s_exe, &rc);
 		if (rc != SQLITE_OK)
 		{
-			std::cerr << sqlite3_errmsg(thisdb) << std::endl;
+      pCur->base.pVtab->zErrMsg = sqlite3_mprintf(sqlite3_errmsg(thisdb));
 			return rc;
 		}
 		myratiohistogram1 = CalcHistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin, &rc);
@@ -352,7 +362,7 @@ int ratiohistoFilter(
 		mybins = GetColumns(thisdb, s_exe, &rc);
 		if (rc != SQLITE_OK)
 		{
-			std::cerr << sqlite3_errmsg(thisdb) << std::endl;
+      pCur->base.pVtab->zErrMsg = sqlite3_mprintf(sqlite3_errmsg(thisdb));
 			return rc;
 		}
 		myratiohistogram2 = CalcHistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin, &rc);

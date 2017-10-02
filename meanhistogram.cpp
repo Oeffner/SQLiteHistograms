@@ -1,9 +1,30 @@
 /*
+meanhistogram.cpp, Robert Oeffner 2017
 
-scatinterpol.cpp, Robert Oeffner 2017
 SQLite extension for calculating interpolated curve of one dimensional scatterplot 
 of column values as well as corresponding standard deviations.
 
+The MIT License (MIT)
+
+Copyright (c) 2017 Robert Oeffner
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
 */
 
@@ -57,7 +78,9 @@ struct meanhisto_cursor {
 
 
 enum ColNum
-{ // Column numbers. The order determines the order of columns in the table output
+{ /* Column numbers. The order determines the order of columns in the table output
+  and must match the order of columns in the CREATE TABLE statement below
+  */
   MEANHISTO_X = 0,
   MEANHISTO_Y,
   MEANHISTO_SIGMA,
@@ -78,7 +101,8 @@ int meanhistoConnect(
   int argc, const char *const*argv,
   sqlite3_vtab **ppVtab,
   char **pzErr
-){
+)
+{
   sqlite3_vtab *pNew;
   int rc;
 /* The hidden columns serves as arguments to the MEANHISTO function as in:
@@ -87,9 +111,10 @@ They won't show up in the SQL tables.
 */
   rc = sqlite3_declare_vtab(db,
 // Order of columns MUST match the order of the above enum ColNum
-  "CREATE TABLE x(bin REAL, yval REAL, sigma REAL, sem REAL, bincount INTEGER, " \
+  "CREATE TABLE x(xbin REAL, yval REAL, sigma REAL, sem REAL, bincount INTEGER, " \
   "tblname hidden, xcolid hidden, ycolid hidden, nbins hidden, minbin hidden, maxbin hidden)");
-  if( rc==SQLITE_OK ){
+  if( rc==SQLITE_OK )
+  {
     pNew = *ppVtab = (sqlite3_vtab *)sqlite3_malloc( sizeof(*pNew) );
     if( pNew==0 ) return SQLITE_NOMEM;
     memset(pNew, 0, sizeof(*pNew));
@@ -224,8 +249,9 @@ int meanhistoFilter(
   }
   else 
   {
-    std::cerr << "Incorrect arguments for function MEANHISTO which must be called as:\n" \
-     " MEANHISTO('tablename', 'xcolumnname', 'ycolumnname', nbins, minbin, maxbin)" << std::endl;
+    const char *zText = "Incorrect arguments for function MEANHISTO which must be called as:\n" \
+     " MEANHISTO('tablename', 'xcolumnname', 'ycolumnname', nbins, minbin, maxbin)\n";
+    pCur->base.pVtab->zErrMsg = sqlite3_mprintf(zText);
     return SQLITE_ERROR;
   }
   
@@ -234,7 +260,7 @@ int meanhistoFilter(
   std::vector< std::vector<double> > myXYs = GetColumns(thisdb, s_exe, &rc);
 	if (rc != SQLITE_OK)
 	{
-		std::cerr << sqlite3_errmsg(thisdb) << std::endl;
+    pCur->base.pVtab->zErrMsg = sqlite3_mprintf(sqlite3_errmsg(thisdb));
 		return rc;
 	}
 	mymeanhistobins = CalcInterpolations(myXYs, pCur->nbins, pCur->minbin, pCur->maxbin, &rc);

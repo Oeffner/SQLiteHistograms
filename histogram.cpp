@@ -1,21 +1,27 @@
 /*
-
 histogram.cpp, Robert Oeffner 2017
-SQLite extension for calculating histogram of column values as well as calculating ratios of 
-two histograms deduced from the same table.
 
+The MIT License (MIT)
 
-Compiles with command line:
+Copyright (c) 2017 Robert Oeffner
 
-On Windows with MSVC++:
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-cl /Gd ..\MySqliteExtentions\histogram.cpp /I sqlite3 /DDLL /EHsc /LD /link /export:sqlite3_histogram_init /out:histogram.sqlext
-For debugging:
-cl /Gd ..\MySqliteExtentions\histogram.cpp /I sqlite3 /DDEBUG  /ZI /DDLL /EHsc /LD /link /debugtype:cv /export:sqlite3_histogram_init /out:histogram.sqlext
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-On Linux with g++:
-
-g++ -fPIC -lm -shared histogram.cpp -o libhistogram.so
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
 */
 
@@ -67,7 +73,9 @@ struct histo_cursor {
 
 
 enum ColNum
-{ // Column numbers. The order determines the order of columns in the table output
+{ /* Column numbers. The order determines the order of columns in the table output
+  and must match the order of columns in the CREATE TABLE statement below
+  */
   HISTO_BIN = 0,
   HISTO_COUNT1,
   HISTO_COUNT2,
@@ -101,7 +109,8 @@ int histoConnect(
   int argc, const char *const*argv,
   sqlite3_vtab **ppVtab,
   char **pzErr
-){
+)
+{
   sqlite3_vtab *pNew;
   int rc;
   // The hidden columns serves as arguments to the HISTO function as in:
@@ -111,7 +120,8 @@ int histoConnect(
     // Order of columns MUST match the order of the above enum ColNum
     "CREATE TABLE x(bin REAL, bincount INTEGER, accumcount INTEGER, " \
   "tblname hidden, colid hidden, nbins hidden, minbin hidden, maxbin hidden)");
-  if( rc==SQLITE_OK ){
+  if( rc==SQLITE_OK )
+  {
     pNew = *ppVtab = (sqlite3_vtab *)sqlite3_malloc( sizeof(*pNew) );
     if( pNew==0 ) return SQLITE_NOMEM;
     memset(pNew, 0, sizeof(*pNew));
@@ -177,11 +187,11 @@ int histoColumn(
   double d = -42.24;
   switch( i ){
     case HISTO_BIN:     d = pCur->bin; sqlite3_result_double(ctx, d); break;
-    case HISTO_COUNT1:   x = pCur->count1; sqlite3_result_int64(ctx, x); break;
-    case HISTO_COUNT2:   x = pCur->count2; sqlite3_result_int64(ctx, x); break;
+    case HISTO_COUNT1:  x = pCur->count1; sqlite3_result_int64(ctx, x); break;
+    case HISTO_COUNT2:  x = pCur->count2; sqlite3_result_int64(ctx, x); break;
     case HISTO_TBLNAME: c = pCur->tblname; sqlite3_result_text(ctx, c.c_str(), -1, NULL);  break;
     case HISTO_COLID:   c = pCur->colid; sqlite3_result_text(ctx, c.c_str(), -1, NULL); break;
-    case HISTO_NBINS:    x = pCur->nbins; sqlite3_result_double(ctx, x); break;
+    case HISTO_NBINS:   x = pCur->nbins; sqlite3_result_double(ctx, x); break;
     case HISTO_MINBIN:  d = pCur->minbin; sqlite3_result_double(ctx, d); break;
     case HISTO_MAXBIN:  d = pCur->maxbin; sqlite3_result_double(ctx, d); break;
     default:            x = pCur->count1; sqlite3_result_int64(ctx, x); break;
@@ -240,7 +250,7 @@ int histoFilter(
   pCur->nbins = 1.0;
   pCur->minbin = 1.0;
   pCur->maxbin = 1.0;
-
+  
   if( idxNum >= HISTO_MAXBIN)
   {
     pCur->tblname = (const char*)sqlite3_value_text(argv[i++]);
@@ -251,8 +261,10 @@ int histoFilter(
   }
   else 
   {
-    std::cerr << "Incorrect arguments for function HISTO which must be called as:\n" \
-     " HISTO('tablename', 'columnname', nbins, minbin, maxbin)" << std::endl;
+    const char *zText = "Incorrect arguments for function HISTO which must be called as:\n" \
+      " HISTO('tablename', 'columnname', nbins, minbin, maxbin)\n";
+    pCur->base.pVtab->zErrMsg = sqlite3_mprintf( zText);
+
     return SQLITE_ERROR;
   }
 
@@ -263,7 +275,7 @@ int histoFilter(
 	mybins = GetColumns(thisdb, s_exe, &rc);
 	if (rc != SQLITE_OK)
 	{
-		std::cerr << sqlite3_errmsg(thisdb) << std::endl;
+    pCur->base.pVtab->zErrMsg = sqlite3_mprintf(sqlite3_errmsg(thisdb));
 		return rc;
 	}
 	myhistogram1 = CalcHistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin, &rc);
