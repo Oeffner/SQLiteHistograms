@@ -1,3 +1,4 @@
+
 # SQLiteHistograms
 An SQLite extension library for creating histogram tables, tables of ratio between histograms and  interpolation 
 tables of scatter point tables.
@@ -9,6 +10,7 @@ The library contains three extensions: HISTO for calculating histograms of data,
 ratios of two histograms and MEANHISTO for calculating interpolated values of 2D scatter data.
 
 Histogram example: 
+
 The SQLite table, "AllProteins", contains a column labelled "NumberofResiduesInModel". Rows in the table are labelled with this
 number which goes up to about 1500. A histogram can be computed using the extension and the statement: 
   SELECT * FROM HISTO("AllProteins", "NumberofResiduesInModel", 15, 0, 1500);
@@ -16,6 +18,7 @@ In the SQLitebrowser the result can be visualised graphically as below:
 ![alt text](histo.jpg)
 
 Ratios of histograms example: 
+
 The SQLite table, "AllProteins", contains a column labelled "LLGvrms". It also has a column, "CCglobal", which is correlated 
 to the values in "LLGvrms" in the sense that whenever values of CCglobal are below 0.2 the corresponding LLGvrms value is 
 below 50. Two different histograms, "count1" and "count2", can be produced when issuing the statement:
@@ -29,6 +32,7 @@ happens to be a sigmoidal curve as illustrated below:
 ![alt text](ratio2.jpg)
 
 Interpolated values from scatter data example:
+
 The SQLite table, "AllProteins", contains two columns labelled "FracvarVRMS1" and "LLGrefl_vrms" respectively. These can be
 illustrated in the scatter plot below with the following statement:
   SELECT FracvarVRMS1, LLGrefl_vrms FROM AllProteins WHERE FracvarVRMS1 <= 0.6;
@@ -67,11 +71,11 @@ cl /Fohelpers.obj /c helpers.cpp /DDEBUG  /ZI /EHsc ^
 
 ## From the sqlite commandline load the extension
 
- on Windows
- sqlite> .load histograms.dll
- sqlite>
+ on Windows:
  
- on Linux
+ sqlite> .load histograms.dll
+ 
+ on Linux:
+ 
  sqlite> .load ./histograms.so
- sqlite>
 
