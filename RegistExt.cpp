@@ -49,6 +49,16 @@ Compile on Linux:
 
  g++ -fPIC -lm -shared histogram.cpp helpers.cpp meanhistogram.cpp ratiohistogram.cpp RegistExt.cpp -o libhistograms.so
 
+ From the sqlite commandline load the extension
+
+ on Windows
+ sqlite> .load histograms.dll
+ sqlite>
+ 
+ on Linux
+ sqlite> .load ./histograms.so
+ sqlite>
+
 */
 
 #include "RegistExt.h"
