@@ -40,3 +40,38 @@ This can be illustrated with the following statement:
 which produces the table that is visualised below:
 ![alt text](mean.jpg)
 
+
+
+## Compile on Windows with Visual Studio 2015
+
+cl /Fohelpers.obj /c helpers.cpp /EHsc ^
+ && cl /Foratiohistogram.obj /c ratiohistogram.cpp /EHsc ^
+ && cl /Fohistogram.obj /c histogram.cpp /EHsc ^
+ && cl /Fomeanhistogram.obj /c meanhistogram.cpp /EHsc ^
+ && cl /FoRegistExt.obj /c RegistExt.cpp /EHsc ^
+ && link /DLL /OUT:histograms.dll helpers.obj RegistExt.obj meanhistogram.obj histogram.obj ratiohistogram.obj
+
+With debug info:
+
+cl /Fohelpers.obj /c helpers.cpp /DDEBUG  /ZI /EHsc ^
+ && cl /Foratiohistogram.obj /c ratiohistogram.cpp /DDEBUG  /ZI /EHsc ^
+ && cl /Fomeanhistogram.obj /c meanhistogram.cpp /DDEBUG  /ZI /EHsc ^
+ && cl /Fohistogram.obj /c histogram.cpp /DDEBUG  /ZI /EHsc ^
+ && cl /FoRegistExt.obj /c RegistExt.cpp  /DDEBUG  /ZI /EHsc ^
+ && link /DLL /DEBUG /debugtype:cv /OUT:histograms.dll helpers.obj meanhistogram.obj RegistExt.obj histogram.obj ratiohistogram.obj
+
+ 
+## Compile on Linux with g++
+
+ g++ -fPIC -lm -shared histogram.cpp helpers.cpp meanhistogram.cpp ratiohistogram.cpp RegistExt.cpp -o libhistograms.so
+
+## From the sqlite commandline load the extension
+
+ on Windows
+ sqlite> .load histograms.dll
+ sqlite>
+ 
+ on Linux
+ sqlite> .load ./histograms.so
+ sqlite>
+
