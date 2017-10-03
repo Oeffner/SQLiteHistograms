@@ -9,6 +9,7 @@ The library contains three extensions: HISTO for calculating histograms of data,
 ratios of two histograms and MEANHISTO for calculating interpolated values of 2D scatter data.
 
 Histogram example:
+
 The SQLite table, "AllProteins", contains a column labelled "NumberofResiduesInModel". Rows in the table are labelled with this
 number which goes up to about 1500. A histogram can be computed using the extension and the statement: 
   SELECT * FROM HISTO("AllProteins", "NumberofResiduesInModel", 15, 0, 1500);
@@ -16,6 +17,7 @@ In the SQLitebrowser the result can be visualised graphically as below:
 ![alt text](histo.jpg)
 
 Ratios of histograms example:
+
 The SQLite table, "AllProteins", contains a column labelled "LLGvrms". It also has a column, "CCglobal", which is correlated 
 to the values in "LLGvrms" in the sense that whenever values of CCglobal are below 0.2 the corresponding LLGvrms value is 
 below 50. Two different histograms, "count1" and "count2", can be produced when issuing the statement:
