@@ -9,7 +9,7 @@ It uses the virtual table feature of SQLite to generate tables on the fly.
 The library contains three extensions: HISTO for calculating histograms of data, RATIOHISTO for calculating 
 ratios of two histograms and MEANHISTO for calculating interpolated values of 2D scatter data.
 
-HISTO function: 
+## HISTO function: 
 
 The signature of the HISTO function is as follows:  
 HISTO("tablename", "columnname", nbins, minbin, maxbin)  
@@ -21,7 +21,7 @@ number which goes up to about 1500. A histogram can be computed using the HISTO 
 This produces a histogram with 15 bins between 0 and 1500. In the SQLitebrowser the result can be visualised graphically as below:  
 ![alt text](histo.jpg)
 
-RATIOHISTO function: 
+## RATIOHISTO function: 
 
 The signature of the RATIOHISTO function is as follows: 
 RATIOHISTO("tablename", "columnname", nbins, minbin, maxbin,  "discrcolid", discrval);  
@@ -43,7 +43,8 @@ histogram divided by the total count. These values are stored in the "ratio" col
 happens to be a sigmoidal curve as illustrated below:  
 ![alt text](ratio2.jpg)
 
-MEANHISTO function  
+## MEANHISTO function  
+
 The signature for the MEANHISTO function is as follows:  
 MEANHISTO('tablename', 'xcolumnname', 'ycolumnname', nbins, minbin, maxbin);  
 The "tablename", the "xcolumnname" and the "ycolumnname" must be entered in quotes. The arguments, nbins, minbin and maxbin are the
@@ -73,27 +74,19 @@ cl /Fohelpers.obj /c helpers.cpp /EHsc ^
  && cl /FoRegistExt.obj /c RegistExt.cpp /EHsc ^  
  && link /DLL /OUT:histograms.dll helpers.obj RegistExt.obj meanhistogram.obj histogram.obj ratiohistogram.obj
 
-With debug info:
-
-cl /Fohelpers.obj /c helpers.cpp /DDEBUG  /ZI /EHsc ^  
- && cl /Foratiohistogram.obj /c ratiohistogram.cpp /DDEBUG  /ZI /EHsc ^  
- && cl /Fomeanhistogram.obj /c meanhistogram.cpp /DDEBUG  /ZI /EHsc ^  
- && cl /Fohistogram.obj /c histogram.cpp /DDEBUG  /ZI /EHsc ^  
- && cl /FoRegistExt.obj /c RegistExt.cpp  /DDEBUG  /ZI /EHsc ^  
- && link /DLL /DEBUG /debugtype:cv /OUT:histograms.dll helpers.obj meanhistogram.obj RegistExt.obj histogram.obj ratiohistogram.obj
-
 
 ## Compile on Linux with g++
 
  g++ -fPIC -lm -shared histogram.cpp helpers.cpp meanhistogram.cpp ratiohistogram.cpp RegistExt.cpp -o histograms.so
 
+
 ## From the sqlite commandline load the extension
 
- on Windows:
+### on Windows:
  
  sqlite> .load histograms.dll
  
- on Linux:
+### on Linux:
  
  sqlite> .load ./histograms.so
 
