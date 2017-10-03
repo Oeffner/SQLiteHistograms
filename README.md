@@ -50,17 +50,17 @@ The signature for the MEANHISTO function is as follows:
 The "tablename", the "xcolumnname" and the "ycolumnname" must be entered in quotes. The arguments, nbins, minbin and maxbin are the
 number of histogram bins, the minimum bin value and the maximum bin value respectively. This function takes a 2 dimensional table
 and sorts the data into nbins number of bins witth respect to the xcolumnname values. For each bin it then computes the average of
-the ycolumnname values. Thus creating an interpolated curve through the 2 dimensional scatter data.  
+the ycolumnname values. Thus creating an interpolated curve through the 2 dimensional scatter data. In addition it also computes the standard deviation, sigma, as well as the standard error margin, sem, and the total count of each bin.  
 
 An example is an SQLite table, "AllProteins", containing two columns labelled "FracvarVRMS1" and "LLGrefl_vrms" 
-respectively. These can be illustrated in the scatter plot below with the following statement:  
+respectively. These have a nonlinear dependency which can be seen with the following plain SQLite statement:  
   `SELECT FracvarVRMS1, LLGrefl_vrms FROM AllProteins WHERE FracvarVRMS1 <= 0.6;`  
+ that produces the scatter plot  
 ![alt text](scatter.jpg)
 
-For the "AllProteins" table there is a visible nonlinear dependency of the LLGrefl_vrms values with respect to FracvarVRMS1. 
 An interpolated curve through this scatter plot can be created with the following statement:  
   `SELECT * FROM MEANHISTO("AllProteins", "FracvarVRMS1", "LLGrefl_vrms", 30, 0, 0.6);`  
-which produces the table that is visualised below:  
+which produces the table and the plot below:  
 ![alt text](mean.jpg)
 
 
