@@ -12,19 +12,19 @@ ratios of two histograms and MEANHISTO for calculating interpolated values of 2D
 ## HISTO function: 
 
 The signature of the HISTO function is as follows:  
-HISTO("tablename", "columnname", nbins, minbin, maxbin)  
+`HISTO("tablename", "columnname", nbins, minbin, maxbin)`   
 The tablename and the columnname must be entered with quotes or double quotes. The arguments, nbins, minbin and maxbin are the
 number of histogram bins, the minimum bin value and the maximum bin value respectively.
 An example is an SQLite table, "AllProteins", that contains a column of integers labelled "NumberofResiduesInModel". Rows in the table are labelled with this
-number which goes up to about 1500. A histogram can be computed using the HISTO function like this:  
-  SELECT * FROM HISTO("AllProteins", "NumberofResiduesInModel", 15, 0, 1500);  
+number which goes up to about 1500. A histogram can be computed using the HISTO function like this:   
+  `SELECT * FROM HISTO("AllProteins", "NumberofResiduesInModel", 15, 0, 1500);`  
 This produces a histogram with 15 bins between 0 and 1500. In the SQLitebrowser the result can be visualised graphically as below:  
 ![alt text](histo.jpg)
 
 ## RATIOHISTO function: 
 
 The signature of the RATIOHISTO function is as follows: 
-RATIOHISTO("tablename", "columnname", nbins, minbin, maxbin,  "discrcolid", discrval);  
+`RATIOHISTO("tablename", "columnname", nbins, minbin, maxbin,  "discrcolid", discrval);`  
 The tablename and the columnname must be entered with quotes or double quotes. The arguments, nbins, minbin and maxbin are the
 number of histogram bins, the minimum bin value and the maximum bin value respectively. The "discrcolid" is the name of a
 column with values that may be a function of the columnname values.  
@@ -34,7 +34,7 @@ An example is an SQLite table, "AllProteins", containing a column labelled "LLGv
 which is correlated to the values in "LLGvrms" in the sense that whenever values of CCglobal are below 0.2 the 
 corresponding LLGvrms value is 
 below 50. Two different histograms, "count1" and "count2", can be produced when issuing the statement:  
-   SELECT * FROM RATIOHISTO("AllProteins", "LLGvrms", 20, 0, 90, "CCglobal", 0.2);  
+   `SELECT * FROM RATIOHISTO("AllProteins", "LLGvrms", 20, 0, 90, "CCglobal", 0.2);`  
 as illustrated below:  
 ![alt text](ratio1.jpg)
 
@@ -46,7 +46,7 @@ happens to be a sigmoidal curve as illustrated below:
 ## MEANHISTO function  
 
 The signature for the MEANHISTO function is as follows:  
-MEANHISTO('tablename', 'xcolumnname', 'ycolumnname', nbins, minbin, maxbin);  
+`MEANHISTO('tablename', 'xcolumnname', 'ycolumnname', nbins, minbin, maxbin);`  
 The "tablename", the "xcolumnname" and the "ycolumnname" must be entered in quotes. The arguments, nbins, minbin and maxbin are the
 number of histogram bins, the minimum bin value and the maximum bin value respectively. This function takes a 2 dimensional table
 and sorts the data into nbins number of bins witth respect to the xcolumnname values. For each bin it then computes the average of
@@ -54,12 +54,12 @@ the ycolumnname values. Thus creating an interpolated curve through the 2 dimens
 
 An example is an SQLite table, "AllProteins", containing two columns labelled "FracvarVRMS1" and "LLGrefl_vrms" 
 respectively. These can be illustrated in the scatter plot below with the following statement:  
-  SELECT FracvarVRMS1, LLGrefl_vrms FROM AllProteins WHERE FracvarVRMS1 <= 0.6;  
+  `SELECT FracvarVRMS1, LLGrefl_vrms FROM AllProteins WHERE FracvarVRMS1 <= 0.6;`  
 ![alt text](scatter.jpg)
 
 For the "AllProteins" table there is a visible nonlinear dependency of the LLGrefl_vrms values with respect to FracvarVRMS1. 
 An interpolated curve through this scatter plot can be created with the following statement:  
-  SELECT * FROM MEANHISTO("AllProteins", "FracvarVRMS1", "LLGrefl_vrms", 30, 0, 0.6);  
+  `SELECT * FROM MEANHISTO("AllProteins", "FracvarVRMS1", "LLGrefl_vrms", 30, 0, 0.6);`  
 which produces the table that is visualised below:  
 ![alt text](mean.jpg)
 
