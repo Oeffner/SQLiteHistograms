@@ -94,3 +94,5 @@ cl /Fohelpers.obj /c helpers.cpp /EHsc ^
  
  sqlite> .load ./histograms.so
 
+## Bugs and feedback
+Feel free to get in touch with me.
