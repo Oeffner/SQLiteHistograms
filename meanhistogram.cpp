@@ -361,6 +361,7 @@ int meanhistoBestIndex(
 
 
 
+
 /*
 ** This following structure defines all the methods for the
 ** generate_meanhisto virtual table.
