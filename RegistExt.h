@@ -33,10 +33,30 @@ SOFTWARE.
 extern "C" {
 #endif
 
+
+// scalar functions
+
+void sqrtFunc(sqlite3_context *context, int argc, sqlite3_value **argv);
+void logFunc(sqlite3_context *context, int argc, sqlite3_value **argv);
+void expFunc(sqlite3_context *context, int argc, sqlite3_value **argv);
+void powFunc(sqlite3_context *context, int argc, sqlite3_value **argv);
+
+// aggregate functions
+
+void CoVarStep(sqlite3_context *context, int argc, sqlite3_value **argv);
+void CoVarFinal(sqlite3_context *context);
+void CorelStep(sqlite3_context *context, int argc, sqlite3_value **argv);
+void CorelFinal(sqlite3_context *context);
+void SpCorelStep(sqlite3_context *context, int argc, sqlite3_value **argv);
+void SpCorelFinal(sqlite3_context *context);
+
+
+
 extern const sqlite3_api_routines *sqlite3_api;
 extern sqlite3 *thisdb;
 
 
+// module functions for some virtual tables
 
 extern sqlite3_module histoModule;
 

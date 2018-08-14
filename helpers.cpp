@@ -203,12 +203,9 @@ Z-Score Confidence Limit (%)
 2.0     95.45
 1.96    95
 1.64    90
-
 */
-
     interpol[i].sem = interpol[i].sigma/sqrt(interpol[i].count);
   }
-
   return interpol;
 }
 

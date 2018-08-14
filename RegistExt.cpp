@@ -26,14 +26,15 @@ SOFTWARE.
 
 
 
-Compile on Windows:
+Compile on Windows linking with whole program optimisation:
 
-cl /Fohelpers.obj /c helpers.cpp /EHsc ^
- && cl /Foratiohistogram.obj /c ratiohistogram.cpp /EHsc ^
- && cl /Fohistogram.obj /c histogram.cpp /EHsc ^
- && cl /Fomeanhistogram.obj /c meanhistogram.cpp /EHsc ^
- && cl /FoRegistExt.obj /c RegistExt.cpp /EHsc ^
- && link /DLL /OUT:histograms.dll helpers.obj RegistExt.obj meanhistogram.obj histogram.obj ratiohistogram.obj
+cl /Ox /EHsc /GL /Fohelpers.obj /c helpers.cpp  ^
+ && cl /Ox /EHsc /GL /FoSQLiteExt.obj /c SQLiteExt.cpp ^
+ && cl /Ox /EHsc /GL /Foratiohistogram.obj /c ratiohistogram.cpp ^
+ && cl /Ox /EHsc /GL /Fohistogram.obj /c histogram.cpp ^
+ && cl /Ox /EHsc /GL /Fomeanhistogram.obj /c meanhistogram.cpp ^
+ && cl /Ox /EHsc /GL /FoRegistExt.obj /c RegistExt.cpp ^
+ && link /DLL /LTCG /OUT:histograms.dll helpers.obj SQLiteExt.obj RegistExt.obj meanhistogram.obj histogram.obj ratiohistogram.obj
 
 With debug info:
 
@@ -61,13 +62,14 @@ Compile on Linux:
 
 */
 
-#include "RegistExt.h"
 
+#include "RegistExt.h"
 
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 
 SQLITE_EXTENSION_INIT1
 
@@ -98,6 +100,16 @@ int sqlite3_histograms_init( // always use lower case
   rc = sqlite3_create_module(db, "HISTO", &histoModule, 0);
   rc = sqlite3_create_module(db, "RATIOHISTO", &ratiohistoModule, 0);
   rc = sqlite3_create_module(db, "MEANHISTO", &meanhistoModule, 0);
+
+  // 3. parameter is the number of arguments the functions take 
+  sqlite3_create_function(db, "SQRT", 1, SQLITE_ANY, 0, sqrtFunc, 0, 0);
+  sqlite3_create_function(db, "LOG", 1, SQLITE_ANY, 0, logFunc, 0, 0);
+  sqlite3_create_function(db, "EXP", 1, SQLITE_ANY, 0, expFunc, 0, 0);
+  sqlite3_create_function(db, "POW", 2, SQLITE_ANY, 0, powFunc, 0, 0);
+
+  sqlite3_create_function(db, "COVAR", 2, SQLITE_ANY, db, NULL, CoVarStep, CoVarFinal);
+  sqlite3_create_function(db, "COREL", 2, SQLITE_ANY, db, NULL, CorelStep, CorelFinal);
+  sqlite3_create_function(db, "SPEARMANCOREL", 2, SQLITE_ANY, db, NULL, SpCorelStep, SpCorelFinal);
 
 #endif
   return rc;

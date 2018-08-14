@@ -16,63 +16,36 @@ with debug info:
 cl /DDEBUG  /ZI /EHsc  SQLiteExt.cpp /I sqlite3 /DDLL /LD /link  /debugtype:cv /export:sqlite3_extension_init /out:myfuncs.sqlext
 
 */
+
+#include "RegistExt.h"
 #include "sqlite3ext.h"
 #include <math.h>
-#include <iostream>
 #include <vector>
-#include <stdint.h>
 
-SQLITE_EXTENSION_INIT1
-/*
-** The SQRT() SQL function returns the square root
-*/
-static void sqrtFunc(
-  sqlite3_context *context,
-  int argc,
-  sqlite3_value **argv
-){
+
+//SQLITE_EXTENSION_INIT1
+
+void sqrtFunc(sqlite3_context *context, int argc, sqlite3_value **argv)
+{
   sqlite3_result_double(context, sqrt(sqlite3_value_double(argv[0])));
 }
 
-
-/*
-** The LOG() SQL function returns the logarithmt
-*/
-static void logFunc(
-  sqlite3_context *context,
-  int argc,
-  sqlite3_value **argv
-){
+void logFunc( sqlite3_context *context, int argc, sqlite3_value **argv)
+{
   sqlite3_result_double(context, log(sqlite3_value_double(argv[0])));
 }
 
-
-/*
-** The EXP() SQL function returns the exponential
-*/
-static void expFunc(
-  sqlite3_context *context,
-  int argc,
-  sqlite3_value **argv
-){
+void expFunc(sqlite3_context *context, int argc, sqlite3_value **argv)
+{
   sqlite3_result_double(context, exp(sqlite3_value_double(argv[0])));
 }
 
-
-/*
-** The POW() SQL function returns the power function
-*/
-static void powFunc(
-  sqlite3_context *context,
-  int argc,
-  sqlite3_value **argv
-){
+void powFunc(sqlite3_context *context, int argc, sqlite3_value **argv)
+{
   sqlite3_result_double(context, pow(sqlite3_value_double(argv[0]), sqlite3_value_double(argv[1])));
 }
 
 
-
-//typedef struct StdevCtx StdevCtx;
 struct StdevCtx 
 {
   StdevCtx()
@@ -84,15 +57,9 @@ struct StdevCtx
   std::vector<double> Y;
 };
 
-static void CoVarStep(sqlite3_context *context, int argc, sqlite3_value **argv)
+void CoVarStep(sqlite3_context *context, int argc, sqlite3_value **argv)
 {
-
-  StdevCtx *p;
-
-  double delta;
-
-  //assert(argc == 2);
-  p = (StdevCtx*)sqlite3_aggregate_context(context, sizeof(*p));
+  StdevCtx *p = (StdevCtx*)sqlite3_aggregate_context(context, sizeof(*p));
   // only consider non-null values 
   if (SQLITE_NULL != sqlite3_value_numeric_type(argv[0])
     && SQLITE_NULL != sqlite3_value_numeric_type(argv[1]))
@@ -103,9 +70,9 @@ static void CoVarStep(sqlite3_context *context, int argc, sqlite3_value **argv)
 }
 
 
-static void CoVarFinal(sqlite3_context *context) {
-  StdevCtx *p;
-  p = (StdevCtx*)sqlite3_aggregate_context(context, 0);
+void CoVarFinal(sqlite3_context *context) 
+{
+  StdevCtx *p = (StdevCtx*)sqlite3_aggregate_context(context, 0);
   if (p && p->X.size() > 0)
   {
     double Xsum = 0.0, Ysum = 0.0;
@@ -135,15 +102,9 @@ static void CoVarFinal(sqlite3_context *context) {
 }
 
 
-static void CorelStep(sqlite3_context *context, int argc, sqlite3_value **argv)
+void CorelStep(sqlite3_context *context, int argc, sqlite3_value **argv)
 {
-
-  StdevCtx *p;
-
-  double delta;
-
-  //assert(argc == 2);
-  p = (StdevCtx*)sqlite3_aggregate_context(context, sizeof(*p));
+  StdevCtx *p = (StdevCtx*)sqlite3_aggregate_context(context, sizeof(*p));
   // only consider non-null values 
   if (SQLITE_NULL != sqlite3_value_numeric_type(argv[0])
     && SQLITE_NULL != sqlite3_value_numeric_type(argv[1]))
@@ -151,13 +112,12 @@ static void CorelStep(sqlite3_context *context, int argc, sqlite3_value **argv)
     p->X.push_back(sqlite3_value_double(argv[0]));
     p->Y.push_back(sqlite3_value_double(argv[1]));
   }
-
 }
 
 
-static void CorelFinal(sqlite3_context *context) {
-  StdevCtx *p;
-  p = (StdevCtx*)sqlite3_aggregate_context(context, 0);
+void CorelFinal(sqlite3_context *context) 
+{
+  StdevCtx *p = (StdevCtx*)sqlite3_aggregate_context(context, 0);
   if (p && p->X.size() > 0)
   {
     double Xsum = 0.0, Ysum = 0.0;
@@ -183,8 +143,8 @@ static void CorelFinal(sqlite3_context *context) {
     Yvar /= p->X.size();
     double Xsig = sqrt(Xvar);
     double Ysig = sqrt(Yvar);
-    double corellation = covar / (Xsig*Ysig);
-    sqlite3_result_double(context, corellation);
+    double corelation = covar / (Xsig*Ysig);
+    sqlite3_result_double(context, corelation);
   }
   else
   {
@@ -213,8 +173,6 @@ struct v2Ctx
   std::vector<spcorval> Y;
 };
 
-
-
 // Function to find ranks in array of spcorval elements
 void Rankify(std::vector<spcorval> &A) 
 {
@@ -233,20 +191,14 @@ void Rankify(std::vector<spcorval> &A)
 	      s += 1;
 	  }
 	  // Use formula to obtain rank
-	  A[i].rank = r + (float)(s - 1) / (float)2;
+	  A[i].rank = r + (float)(s - 1)/2.0;
 	}
-//  for (int i = 0; i < A.size(); i++)
-//    std::cout << A[i].val << ' '<< A[i].rank << '\n';
 }
 
 
-static void SpCorelStep(sqlite3_context *context, int argc, sqlite3_value **argv)
+void SpCorelStep(sqlite3_context *context, int argc, sqlite3_value **argv)
 {
-  v2Ctx *p;
-  double delta;
-
-  //assert(argc == 2);
-  p = (v2Ctx*)sqlite3_aggregate_context(context, sizeof(*p));
+  v2Ctx *p = (v2Ctx*)sqlite3_aggregate_context(context, sizeof(*p));
   // only consider non-null values 
   if (SQLITE_NULL != sqlite3_value_numeric_type(argv[0])
     && SQLITE_NULL != sqlite3_value_numeric_type(argv[1]))
@@ -257,19 +209,16 @@ static void SpCorelStep(sqlite3_context *context, int argc, sqlite3_value **argv
     p->X.push_back(x);
     p->Y.push_back(y);
   }
-
 }
 
 
-static void SpCorelFinal(sqlite3_context *context) {
-  v2Ctx *p;
-  p = (v2Ctx*)sqlite3_aggregate_context(context, 0);
+void SpCorelFinal(sqlite3_context *context) {
+  v2Ctx *p = (v2Ctx*)sqlite3_aggregate_context(context, 0);
   if (p && p->X.size() > 0)
   {
     // now rank the arrays first
     Rankify(p->X);
     Rankify(p->Y);
-
 
     double Xsum = 0.0, Ysum = 0.0;
     for (unsigned j = 0; j < p->X.size(); j++)
@@ -279,7 +228,6 @@ static void SpCorelFinal(sqlite3_context *context) {
     }
     double Xavg = Xsum / p->X.size();
     double Yavg = Ysum / p->Y.size();
-
     double covar = 0.0, Xvar = 0.0, Yvar = 0.0;
     for (unsigned j = 0; j < p->X.size(); j++)
     {
@@ -294,8 +242,8 @@ static void SpCorelFinal(sqlite3_context *context) {
     Yvar /= p->X.size();
     double Xsig = sqrt(Xvar);
     double Ysig = sqrt(Yvar);
-    double corellation = covar / (Xsig*Ysig);
-    sqlite3_result_double(context, corellation);
+    double corelation = covar/(Xsig*Ysig);
+    sqlite3_result_double(context, corelation);
   }
   else
   {
@@ -306,23 +254,18 @@ static void SpCorelFinal(sqlite3_context *context) {
 }
 
 
-
+/*
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* SQLite invokes this routine once when it loads the extension.
-** Create new functions, collating sequences, and virtual table
-** modules here.  This is usually the only exported symbol in
-** the shared library.
-*/
 int sqlite3_extension_init(
   sqlite3 *db,
   char **pzErrMsg,
   const sqlite3_api_routines *pApi
 ){
   SQLITE_EXTENSION_INIT2(pApi)
-/* 3. parameter is the number of arguments the functions take */
+
   sqlite3_create_function(db, "SQRT", 1, SQLITE_ANY, 0, sqrtFunc, 0, 0);
   sqlite3_create_function(db, "LOG", 1, SQLITE_ANY, 0, logFunc, 0, 0);
   sqlite3_create_function(db, "EXP", 1, SQLITE_ANY, 0, expFunc, 0, 0);
@@ -339,3 +282,7 @@ int sqlite3_extension_init(
 #ifdef __cplusplus
 }
 #endif
+*/
+
+
+
