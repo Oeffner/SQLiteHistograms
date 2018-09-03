@@ -1,5 +1,5 @@
 /*
-meanhistogram.cpp, Robert Oeffner 2017
+meanhistogram.cpp, Robert Oeffner 2018
 
 SQLite extension for calculating interpolated curve of one dimensional scatterplot 
 of column values as well as corresponding standard deviations.

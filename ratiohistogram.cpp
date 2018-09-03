@@ -1,5 +1,5 @@
 /*
-ratiohistogram.cpp, Robert Oeffner 2017
+ratiohistogram.cpp, Robert Oeffner 2018
 
 SQLite extension for calculating ratiohistogram of column values as well as calculating ratios of 
 two histograms deduced from the same table.

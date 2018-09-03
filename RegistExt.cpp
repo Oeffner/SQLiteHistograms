@@ -1,5 +1,5 @@
 /*
-RegistExt.cpp, Robert Oeffner 2017
+RegistExt.cpp, Robert Oeffner 2018
 
 The MIT License (MIT)
 

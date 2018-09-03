@@ -1,5 +1,5 @@
 /*
-helpers.h, Robert Oeffner 2017
+helpers.h, Robert Oeffner 2018
 
 The MIT License (MIT)
 
