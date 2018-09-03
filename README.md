@@ -76,13 +76,17 @@ which produces the table of average bin values below:
 
 The squareroot, logarithm, exponential and the power function act on column values and are 
 invoked as in
+
    `SELECT SQRT(9), LOG(10), EXP(3), POW(4,2);`
    
 ## Correlation values
    
 The Pearson correlation value and the Spearman rank correlation value can be calculated as in:
+
     `SELECT CORREL(LLGvrms, CCglobal) FROM AllProteins;`
+    
 or
+
     `SELECT SPEARMANCORREL(LLGvrms, CCglobal) FROM AllProteins;`
 
 ## Compile on Windows with Visual Studio 2015
