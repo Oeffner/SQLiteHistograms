@@ -45,10 +45,6 @@ extern "C" {
 
 
 
-std::vector<histobin> myhistogram1;
-
-
-
 /* histo_cursor is a subclass of sqlite3_vtab_cursor which will
 ** serve as the underlying representation of a cursor that scans
 ** over rows of the result
@@ -68,6 +64,7 @@ struct histo_cursor {
   int            nbins;
   double         minbin;
   double         maxbin;
+  std::vector<histobin> histogram;
 };
 
 
@@ -166,9 +163,9 @@ int histoNext(sqlite3_vtab_cursor *cur){
   histo_cursor *pCur = (histo_cursor*)cur;
   pCur->iRowid++;
   int i = pCur->iRowid - 1;
-  pCur->bin = myhistogram1[i].binval; 
-  pCur->count1 = myhistogram1[i].count;
-  pCur->count2 = myhistogram1[i].accumcount;
+  pCur->bin = pCur->histogram[i].binval;
+  pCur->count1 = pCur->histogram[i].count;
+  pCur->count2 = pCur->histogram[i].accumcount;
   return SQLITE_OK;
 }
 
@@ -220,7 +217,7 @@ int histoEof(sqlite3_vtab_cursor *cur) {
     return pCur->iRowid < 1;
   }
   else {
-    return pCur->iRowid > myhistogram1.size();
+    return pCur->iRowid > pCur->histogram.size();
   }
 }
 
@@ -278,13 +275,13 @@ int histoFilter(
     pCur->base.pVtab->zErrMsg = sqlite3_mprintf(sqlite3_errmsg(thisdb));
 		return rc;
 	}
-	myhistogram1 = CalcHistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin, &rc);
+  pCur->histogram = CalcHistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin, &rc);
 	if (rc != SQLITE_OK)
 		return rc;
 
-	pCur->bin = myhistogram1[0].binval;
-	pCur->count1 = myhistogram1[0].count;
-	pCur->count2 = myhistogram1[0].accumcount;
+	pCur->bin = pCur->histogram[0].binval;
+	pCur->count1 = pCur->histogram[0].count;
+	pCur->count2 = pCur->histogram[0].accumcount;
 	pCur->isDesc = 0;
 	pCur->iRowid = 1;
 

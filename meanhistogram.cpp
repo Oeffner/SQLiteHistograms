@@ -49,10 +49,6 @@ extern "C" {
 
 
 
-std::vector<interpolatebin> mymeanhistobins;
-
-
-
 /* meanhisto_cursor is a subclass of sqlite3_vtab_cursor which will
 ** serve as the underlying representation of a cursor that scans
 ** over rows of the result
@@ -73,6 +69,7 @@ struct meanhisto_cursor {
   int            nbins;
   double         minbin;
   double         maxbin;
+  std::vector<interpolatebin> meanhistobins;
 };
 
 
@@ -159,11 +156,11 @@ int meanhistoNext(sqlite3_vtab_cursor *cur){
   meanhisto_cursor *pCur = (meanhisto_cursor*)cur;
   pCur->iRowid++;
   int i = pCur->iRowid - 1;
-  pCur->x = mymeanhistobins[i].xval;
-  pCur->y = mymeanhistobins[i].yval;
-  pCur->sigma = mymeanhistobins[i].sigma;
-  pCur->sem = mymeanhistobins[i].sem;
-  pCur->count = mymeanhistobins[i].count;
+  pCur->x = pCur->meanhistobins[i].xval;
+  pCur->y = pCur->meanhistobins[i].yval;
+  pCur->sigma = pCur->meanhistobins[i].sigma;
+  pCur->sem = pCur->meanhistobins[i].sem;
+  pCur->count = pCur->meanhistobins[i].count;
   return SQLITE_OK;
 }
 
@@ -218,7 +215,7 @@ int meanhistoEof(sqlite3_vtab_cursor *cur) {
     return pCur->iRowid < 1;
   }
   else {
-    return pCur->iRowid > mymeanhistobins.size();
+    return pCur->iRowid > pCur->meanhistobins.size();
   }
 }
 
@@ -263,15 +260,15 @@ int meanhistoFilter(
     pCur->base.pVtab->zErrMsg = sqlite3_mprintf(sqlite3_errmsg(thisdb));
 		return rc;
 	}
-	mymeanhistobins = CalcInterpolations(myXYs, pCur->nbins, pCur->minbin, pCur->maxbin, &rc);
+  pCur->meanhistobins = CalcInterpolations(myXYs, pCur->nbins, pCur->minbin, pCur->maxbin, &rc);
 	if (rc != SQLITE_OK)
 		return rc;
 
-  pCur->x = mymeanhistobins[0].xval;
-  pCur->y = mymeanhistobins[0].yval;
-  pCur->sigma = mymeanhistobins[0].sigma;
-  pCur->sem = mymeanhistobins[0].sem;
-  pCur->count = mymeanhistobins[0].count;
+  pCur->x = pCur->meanhistobins[0].xval;
+  pCur->y = pCur->meanhistobins[0].yval;
+  pCur->sigma = pCur->meanhistobins[0].sigma;
+  pCur->sem = pCur->meanhistobins[0].sem;
+  pCur->count = pCur->meanhistobins[0].count;
   pCur->isDesc = 0;
   pCur->iRowid = 1;
 

@@ -41,21 +41,11 @@ SOFTWARE.
 #ifndef SQLITE_OMIT_VIRTUALTABLE
 
 
-
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-
-
-
-std::vector<histobin> myratiohistogram1;
-std::vector<histobin> myratiohistogram2;
-
-
-
-/* histo_cursor is a subclass of sqlite3_vtab_cursor which will
+  /* histo_cursor is a subclass of sqlite3_vtab_cursor which will
 ** serve as the underlying representation of a cursor that scans
 ** over rows of the result
 */
@@ -76,6 +66,8 @@ struct ratiohisto_cursor {
   double         maxbin;
   std::string    discrcolid;
   std::string    discrval;
+  std::vector<histobin> ratiohistogram1;
+  std::vector<histobin> ratiohistogram2;
 };
 
 
@@ -178,10 +170,10 @@ int ratiohistoNext(sqlite3_vtab_cursor *cur){
   ratiohisto_cursor *pCur = (ratiohisto_cursor*)cur;
   pCur->iRowid++;
   int i = pCur->iRowid - 1;
-  pCur->bin = myratiohistogram1[i].binval; 
-  pCur->count1 = myratiohistogram1[i].count;
-  pCur->count2 = myratiohistogram2[i].count;
-  pCur->totalcount = myratiohistogram1[i].count + myratiohistogram2[i].count;
+  pCur->bin = pCur->ratiohistogram1[i].binval;
+  pCur->count1 = pCur->ratiohistogram1[i].count;
+  pCur->count2 = pCur->ratiohistogram2[i].count;
+  pCur->totalcount = pCur->ratiohistogram1[i].count + pCur->ratiohistogram2[i].count;
   if (pCur->totalcount > 0)
     pCur->ratio = ((double) pCur->count1 ) / pCur->totalcount;
   else
@@ -271,7 +263,7 @@ int ratiohistoEof(sqlite3_vtab_cursor *cur) {
     return pCur->iRowid < 1;
   }
   else {
-    return pCur->iRowid > myratiohistogram1.size();
+    return pCur->iRowid > pCur->ratiohistogram1.size();
   }
 }
 
@@ -332,11 +324,11 @@ int ratiohistoFilter(
     pCur->base.pVtab->zErrMsg = sqlite3_mprintf(sqlite3_errmsg(thisdb));
 		return rc;
 	}
-	myratiohistogram1 = CalcHistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin, &rc);
+  pCur->ratiohistogram1 = CalcHistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin, &rc);
 	if (rc != SQLITE_OK)
 		return rc;
-	myratiohistogram2.resize(pCur->nbins);
-  pCur->totalcount = myratiohistogram1[0].count;
+  pCur->ratiohistogram2.resize(pCur->nbins);
+  pCur->totalcount = pCur->ratiohistogram1[0].count;
   pCur->ratio = 0.0;
 
   if (pCur->discrcolid != "") // make two ratiohistograms for values above and below discrval
@@ -351,7 +343,7 @@ int ratiohistoFilter(
       pCur->base.pVtab->zErrMsg = sqlite3_mprintf(sqlite3_errmsg(thisdb));
 			return rc;
 		}
-		myratiohistogram1 = CalcHistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin, &rc);
+    pCur->ratiohistogram1 = CalcHistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin, &rc);
 		if (rc != SQLITE_OK)
 			return rc;
 
@@ -365,14 +357,14 @@ int ratiohistoFilter(
       pCur->base.pVtab->zErrMsg = sqlite3_mprintf(sqlite3_errmsg(thisdb));
 			return rc;
 		}
-		myratiohistogram2 = CalcHistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin, &rc);
+    pCur->ratiohistogram2 = CalcHistogram(mybins, pCur->nbins, pCur->minbin, pCur->maxbin, &rc);
 		if (rc != SQLITE_OK)
 			return rc;
   }
-  pCur->bin = myratiohistogram1[0].binval;
-  pCur->count1 = myratiohistogram1[0].count;
-  pCur->count2 = myratiohistogram2[0].count;
-  pCur->totalcount = myratiohistogram1[0].count + myratiohistogram2[0].count;
+  pCur->bin = pCur->ratiohistogram1[0].binval;
+  pCur->count1 = pCur->ratiohistogram1[0].count;
+  pCur->count2 = pCur->ratiohistogram2[0].count;
+  pCur->totalcount = pCur->ratiohistogram1[0].count + pCur->ratiohistogram2[0].count;
   if (pCur->totalcount > 0)
     pCur->ratio = pCur->count1 / pCur->totalcount;
 
