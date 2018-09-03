@@ -45,10 +45,10 @@ void powFunc(sqlite3_context *context, int argc, sqlite3_value **argv);
 
 void CoVarStep(sqlite3_context *context, int argc, sqlite3_value **argv);
 void CoVarFinal(sqlite3_context *context);
-void CorelStep(sqlite3_context *context, int argc, sqlite3_value **argv);
-void CorelFinal(sqlite3_context *context);
-void SpCorelStep(sqlite3_context *context, int argc, sqlite3_value **argv);
-void SpCorelFinal(sqlite3_context *context);
+void CorrelStep(sqlite3_context *context, int argc, sqlite3_value **argv);
+void CorrelFinal(sqlite3_context *context);
+void SpCorrelStep(sqlite3_context *context, int argc, sqlite3_value **argv);
+void SpCorrelFinal(sqlite3_context *context);
 
 
 

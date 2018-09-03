@@ -38,12 +38,13 @@ cl /Ox /EHsc /GL /Fohelpers.obj /c helpers.cpp  ^
 
 With debug info:
 
-cl /Fohelpers.obj /c helpers.cpp /DDEBUG  /ZI /EHsc ^
+cl /Fohelpers.obj /c helpers.cpp /DDEBUG /ZI /EHsc ^
+ && cl /FoSQLiteExt.obj /c SQLiteExt.cpp /DDEBUG  /ZI /EHsc ^
  && cl /Foratiohistogram.obj /c ratiohistogram.cpp /DDEBUG  /ZI /EHsc ^
  && cl /Fomeanhistogram.obj /c meanhistogram.cpp /DDEBUG  /ZI /EHsc ^
  && cl /Fohistogram.obj /c histogram.cpp /DDEBUG  /ZI /EHsc ^
  && cl /FoRegistExt.obj /c RegistExt.cpp  /DDEBUG  /ZI /EHsc ^
- && link /DLL /DEBUG /debugtype:cv /OUT:histograms.dll helpers.obj meanhistogram.obj RegistExt.obj histogram.obj ratiohistogram.obj
+ && link /DLL /DEBUG /debugtype:cv /OUT:histograms.dll helpers.obj SQLiteExt.obj meanhistogram.obj RegistExt.obj histogram.obj ratiohistogram.obj
 
  
 Compile on Linux:
@@ -108,8 +109,8 @@ int sqlite3_histograms_init( // always use lower case
   sqlite3_create_function(db, "POW", 2, SQLITE_ANY, 0, powFunc, 0, 0);
 
   sqlite3_create_function(db, "COVAR", 2, SQLITE_ANY, db, NULL, CoVarStep, CoVarFinal);
-  sqlite3_create_function(db, "COREL", 2, SQLITE_ANY, db, NULL, CorelStep, CorelFinal);
-  sqlite3_create_function(db, "SPEARMANCOREL", 2, SQLITE_ANY, db, NULL, SpCorelStep, SpCorelFinal);
+  sqlite3_create_function(db, "CORREL", 2, SQLITE_ANY, db, NULL, CorrelStep, CorrelFinal);
+  sqlite3_create_function(db, "SPEARMANCORREL", 2, SQLITE_ANY, db, NULL, SpCorrelStep, SpCorrelFinal);
 
 #endif
   return rc;

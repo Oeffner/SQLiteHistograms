@@ -48,14 +48,10 @@ void powFunc(sqlite3_context *context, int argc, sqlite3_value **argv)
 
 struct StdevCtx 
 {
-  StdevCtx()
-  {
-    X.clear();
-    Y.clear();
-  }
   std::vector<double> X;
   std::vector<double> Y;
 };
+
 
 void CoVarStep(sqlite3_context *context, int argc, sqlite3_value **argv)
 {
@@ -102,7 +98,7 @@ void CoVarFinal(sqlite3_context *context)
 }
 
 
-void CorelStep(sqlite3_context *context, int argc, sqlite3_value **argv)
+void CorrelStep(sqlite3_context *context, int argc, sqlite3_value **argv)
 {
   StdevCtx *p = (StdevCtx*)sqlite3_aggregate_context(context, sizeof(*p));
   // only consider non-null values 
@@ -115,7 +111,7 @@ void CorelStep(sqlite3_context *context, int argc, sqlite3_value **argv)
 }
 
 
-void CorelFinal(sqlite3_context *context) 
+void CorrelFinal(sqlite3_context *context) 
 {
   StdevCtx *p = (StdevCtx*)sqlite3_aggregate_context(context, 0);
   if (p && p->X.size() > 0)
@@ -143,8 +139,8 @@ void CorelFinal(sqlite3_context *context)
     Yvar /= p->X.size();
     double Xsig = sqrt(Xvar);
     double Ysig = sqrt(Yvar);
-    double corelation = covar / (Xsig*Ysig);
-    sqlite3_result_double(context, corelation);
+    double correlation = covar / (Xsig*Ysig);
+    sqlite3_result_double(context, correlation);
   }
   else
   {
@@ -164,19 +160,16 @@ struct spcorval
 
 struct v2Ctx
 {
-  v2Ctx()
-  {
-    X.clear();
-    Y.clear();
-  }
   std::vector<spcorval> X;
   std::vector<spcorval> Y;
 };
 
+
+
 // Function to find ranks in array of spcorval elements
 void Rankify(std::vector<spcorval> &A) 
 {
-	std::vector<spcorval>;
+	//std::vector<spcorval>;
 	// Sweep through all elements in A for each
 	// element count the number of less than and
 	// equal elements separately in r and s.
@@ -196,7 +189,7 @@ void Rankify(std::vector<spcorval> &A)
 }
 
 
-void SpCorelStep(sqlite3_context *context, int argc, sqlite3_value **argv)
+void SpCorrelStep(sqlite3_context *context, int argc, sqlite3_value **argv)
 {
   v2Ctx *p = (v2Ctx*)sqlite3_aggregate_context(context, sizeof(*p));
   // only consider non-null values 
@@ -212,7 +205,7 @@ void SpCorelStep(sqlite3_context *context, int argc, sqlite3_value **argv)
 }
 
 
-void SpCorelFinal(sqlite3_context *context) {
+void SpCorrelFinal(sqlite3_context *context) {
   v2Ctx *p = (v2Ctx*)sqlite3_aggregate_context(context, 0);
   if (p && p->X.size() > 0)
   {
@@ -242,8 +235,8 @@ void SpCorelFinal(sqlite3_context *context) {
     Yvar /= p->X.size();
     double Xsig = sqrt(Xvar);
     double Ysig = sqrt(Yvar);
-    double corelation = covar/(Xsig*Ysig);
-    sqlite3_result_double(context, corelation);
+    double correlation = covar/(Xsig*Ysig);
+    sqlite3_result_double(context, correlation);
   }
   else
   {
