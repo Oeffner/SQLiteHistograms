@@ -91,13 +91,13 @@ or
 
 ## Compile on Windows with Visual Studio 2015
 
-cl /Ox /EHsc /GL /Fohelpers.obj /c helpers.cpp  ^
- && cl /Ox /EHsc /GL /FoSQLiteExt.obj /c SQLiteExt.cpp ^
- && cl /Ox /EHsc /GL /Foratiohistogram.obj /c ratiohistogram.cpp ^
- && cl /Ox /EHsc /GL /Fohistogram.obj /c histogram.cpp ^
- && cl /Ox /EHsc /GL /Fomeanhistogram.obj /c meanhistogram.cpp ^
- && cl /Ox /EHsc /GL /FoRegistExt.obj /c RegistExt.cpp ^
- && link /DLL /LTCG /OUT:histograms.dll helpers.obj SQLiteExt.obj RegistExt.obj meanhistogram.obj histogram.obj ratiohistogram.obj
+cl /Ox /EHsc /GL /Fohelpers.obj /c helpers.cpp  ^  
+ && cl /Ox /EHsc /GL /FoSQLiteExt.obj /c SQLiteExt.cpp ^  
+ && cl /Ox /EHsc /GL /Foratiohistogram.obj /c ratiohistogram.cpp ^  
+ && cl /Ox /EHsc /GL /Fohistogram.obj /c histogram.cpp ^  
+ && cl /Ox /EHsc /GL /Fomeanhistogram.obj /c meanhistogram.cpp ^  
+ && cl /Ox /EHsc /GL /FoRegistExt.obj /c RegistExt.cpp ^  
+ && link /DLL /LTCG /OUT:histograms.dll helpers.obj SQLiteExt.obj RegistExt.obj meanhistogram.obj histogram.obj ratiohistogram.obj  
 
  
 ## Compile on Linux with g++
