@@ -4,8 +4,12 @@
 This SQLite extension library is based on the 'ext/misc/series.c example from the SQLite source files. 
 It uses the virtual table feature of SQLite to generate tables on the fly.
 
-The library contains three extensions: HISTO for calculating histograms of data, RATIOHISTO for calculating 
+The library contains more SQLite extensions: HISTO for calculating histograms of data, RATIOHISTO
+for calculating 
 ratios of two histograms and MEANHISTO for calculating interpolated values of 2D scatter data.
+SQRT, LOG, EXP and POW are provided for calculating squareroot, logarithm, exponential and raising 
+column values to a power, respectively. The Pearson correlation value and the Spearman rank 
+correlation can be calculated between two columns with the CORREL and the SPEARMANCORREL functions.
 
 ## HISTO function: 
 
@@ -68,20 +72,33 @@ which produces the table of average bin values below:
 ![alt text](mean.jpg)
 
 
+## SQRT, LOG, EXP and POW functions
+
+The squareroot, logarithm, exponential and the power function act on column values and are 
+invoked as in
+   `SELECT SQRT(9), LOG(10), EXP(3), POW(4,2);`
+   
+## Correlation values
+   
+The Pearson correlation value and the Spearman rank correlation value can be calculated as in:
+    `SELECT CORREL(LLGvrms, CCglobal) FROM AllProteins;`
+or
+    `SELECT SPEARMANCORREL(LLGvrms, CCglobal) FROM AllProteins;`
 
 ## Compile on Windows with Visual Studio 2015
 
-cl /Fohelpers.obj /c helpers.cpp /EHsc ^  
- && cl /Foratiohistogram.obj /c ratiohistogram.cpp /EHsc ^  
- && cl /Fohistogram.obj /c histogram.cpp /EHsc ^  
- && cl /Fomeanhistogram.obj /c meanhistogram.cpp /EHsc ^  
- && cl /FoRegistExt.obj /c RegistExt.cpp /EHsc ^  
- && link /DLL /OUT:histograms.dll helpers.obj RegistExt.obj meanhistogram.obj histogram.obj ratiohistogram.obj
+cl /Ox /EHsc /GL /Fohelpers.obj /c helpers.cpp  ^
+ && cl /Ox /EHsc /GL /FoSQLiteExt.obj /c SQLiteExt.cpp ^
+ && cl /Ox /EHsc /GL /Foratiohistogram.obj /c ratiohistogram.cpp ^
+ && cl /Ox /EHsc /GL /Fohistogram.obj /c histogram.cpp ^
+ && cl /Ox /EHsc /GL /Fomeanhistogram.obj /c meanhistogram.cpp ^
+ && cl /Ox /EHsc /GL /FoRegistExt.obj /c RegistExt.cpp ^
+ && link /DLL /LTCG /OUT:histograms.dll helpers.obj SQLiteExt.obj RegistExt.obj meanhistogram.obj histogram.obj ratiohistogram.obj
 
-
+ 
 ## Compile on Linux with g++
 
- g++ -fPIC -lm -shared histogram.cpp helpers.cpp meanhistogram.cpp ratiohistogram.cpp RegistExt.cpp -o histograms.so
+ g++ -fPIC -lm -shared histogram.cpp helpers.cpp meanhistogram.cpp ratiohistogram.cpp SQLiteExt.cpp RegistExt.cpp -o histograms.so
 
 
 ## Loading the extension from the sqlite3 commandline

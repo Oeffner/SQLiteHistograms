@@ -63,51 +63,6 @@ struct StdevCtx
 };
 
 
-void CoVarStep(sqlite3_context *context, int argc, sqlite3_value **argv)
-{
-  StdevCtx *p = (StdevCtx*)sqlite3_aggregate_context(context, sizeof(*p));
-  // only consider non-null values 
-  if (SQLITE_NULL != sqlite3_value_numeric_type(argv[0])
-    && SQLITE_NULL != sqlite3_value_numeric_type(argv[1]))
-  {
-    p->X.push_back(sqlite3_value_double(argv[0]));
-    p->Y.push_back(sqlite3_value_double(argv[1]));
-  }
-}
-
-
-void CoVarFinal(sqlite3_context *context) 
-{
-  StdevCtx *p = (StdevCtx*)sqlite3_aggregate_context(context, 0);
-  if (p && p->X.size() > 0)
-  {
-    double Xsum = 0.0, Ysum = 0.0;
-    for (unsigned j = 0; j < p->X.size(); j++)
-    {
-      Xsum += p->X[j];
-      Ysum += p->Y[j];
-    }
-    double Xavg = Xsum / p->X.size();
-    double Yavg = Ysum / p->Y.size();
-
-    double covar = 0.0;
-    for (unsigned j = 0; j < p->X.size(); j++)
-    {
-      covar += (p->X[j] - Xavg) * (p->Y[j] - Yavg);
-    }
-    covar /= p->X.size();
-
-    sqlite3_result_double(context, covar);
-  }
-  else
-  {
-    sqlite3_result_double(context, 0.0);
-  }
-  p->X.clear();
-  p->Y.clear();
-}
-
-
 void CorrelStep(sqlite3_context *context, int argc, sqlite3_value **argv)
 {
   StdevCtx *p = (StdevCtx*)sqlite3_aggregate_context(context, sizeof(*p));
@@ -179,7 +134,6 @@ struct v2Ctx
 // Function to find ranks in array of spcorval elements
 void Rankify(std::vector<spcorval> &A) 
 {
-	//std::vector<spcorval>;
 	// Sweep through all elements in A for each
 	// element count the number of less than and
 	// equal elements separately in r and s.

@@ -43,8 +43,6 @@ void powFunc(sqlite3_context *context, int argc, sqlite3_value **argv);
 
 // aggregate functions
 
-void CoVarStep(sqlite3_context *context, int argc, sqlite3_value **argv);
-void CoVarFinal(sqlite3_context *context);
 void CorrelStep(sqlite3_context *context, int argc, sqlite3_value **argv);
 void CorrelFinal(sqlite3_context *context);
 void SpCorrelStep(sqlite3_context *context, int argc, sqlite3_value **argv);

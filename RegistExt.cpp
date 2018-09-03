@@ -108,7 +108,6 @@ int sqlite3_histograms_init( // always use lower case
   sqlite3_create_function(db, "EXP", 1, SQLITE_ANY, 0, expFunc, 0, 0);
   sqlite3_create_function(db, "POW", 2, SQLITE_ANY, 0, powFunc, 0, 0);
 
-  sqlite3_create_function(db, "COVAR", 2, SQLITE_ANY, db, NULL, CoVarStep, CoVarFinal);
   sqlite3_create_function(db, "CORREL", 2, SQLITE_ANY, db, NULL, CorrelStep, CorrelFinal);
   sqlite3_create_function(db, "SPEARMANCORREL", 2, SQLITE_ANY, db, NULL, SpCorrelStep, SpCorrelFinal);
 
