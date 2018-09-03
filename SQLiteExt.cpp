@@ -1,21 +1,32 @@
-/* SQLite extensions for providing useful math functions not present in vanilla SQLite
-Assuming source files lives in MySqliteXtentions compile from different folder with command line:
+/*
+SQLiteExt.cpp, Robert Oeffner 2018
 
-cl /Gd ..\MySqliteXtentions\SQLiteXt.c /I sqlite3 /DDLL /LD /link /export:sqlite3_extension_init /out:myfuncs_64.sqlext
+SQLite extension for providing useful math functions not present in vanilla SQLite.
 
-and then copy myfuncs.sqlext into same folder where sqlite3.exe lives.
-Subsequently use it from the sqlite prompt as follows:
+The MIT License (MIT)
 
-sqlite> .load myfuncs.sqlext
-sqlite> SELECT LOG(2.71829);
-LOG(2.71829)
-1.0000030061374
+Copyright (c) 2017 Robert Oeffner
 
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-with debug info:
-cl /DDEBUG  /ZI /EHsc  SQLiteExt.cpp /I sqlite3 /DDLL /LD /link  /debugtype:cv /export:sqlite3_extension_init /out:myfuncs.sqlext
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
 */
+
 
 #include "RegistExt.h"
 #include "sqlite3ext.h"
@@ -23,7 +34,6 @@ cl /DDEBUG  /ZI /EHsc  SQLiteExt.cpp /I sqlite3 /DDLL /LD /link  /debugtype:cv /
 #include <vector>
 
 
-//SQLITE_EXTENSION_INIT1
 
 void sqrtFunc(sqlite3_context *context, int argc, sqlite3_value **argv)
 {
@@ -246,36 +256,6 @@ void SpCorrelFinal(sqlite3_context *context) {
   p->Y.clear();
 }
 
-
-/*
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-int sqlite3_extension_init(
-  sqlite3 *db,
-  char **pzErrMsg,
-  const sqlite3_api_routines *pApi
-){
-  SQLITE_EXTENSION_INIT2(pApi)
-
-  sqlite3_create_function(db, "SQRT", 1, SQLITE_ANY, 0, sqrtFunc, 0, 0);
-  sqlite3_create_function(db, "LOG", 1, SQLITE_ANY, 0, logFunc, 0, 0);
-  sqlite3_create_function(db, "EXP", 1, SQLITE_ANY, 0, expFunc, 0, 0);
-  sqlite3_create_function(db, "POW", 2, SQLITE_ANY, 0, powFunc, 0, 0);
-  
-  sqlite3_create_function(db, "COVAR", 2, SQLITE_ANY, db, NULL, CoVarStep, CoVarFinal);
-  sqlite3_create_function(db, "COREL", 2, SQLITE_ANY, db, NULL, CorelStep, CorelFinal);
-  sqlite3_create_function(db, "SPEARMANCOREL", 2, SQLITE_ANY, db, NULL, SpCorelStep, SpCorelFinal);
-
-  return 0;
-}
-
-
-#ifdef __cplusplus
-}
-#endif
-*/
 
 
 
