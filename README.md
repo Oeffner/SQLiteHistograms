@@ -76,17 +76,13 @@ which produces the table of average bin values below:
 
 The squareroot, logarithm, exponential and the power function act on column values and are 
 invoked as in
-
-   `SELECT SQRT(9), LOG(10), EXP(3), POW(4,2);`
+   `SELECT SQRT(LLGvrms), LOG(LLGvrms), EXP(CCglobal), POW(TFZequiv, 2.0) FROM AllProteins;`
    
 ## Correlation values
    
 The Pearson correlation value and the Spearman rank correlation value can be calculated as in:
-
     `SELECT CORREL(LLGvrms, CCglobal) FROM AllProteins;`
-    
 or
-
     `SELECT SPEARMANCORREL(LLGvrms, CCglobal) FROM AllProteins;`
 
 ## Compile on Windows with Visual Studio 2015
@@ -102,7 +98,7 @@ cl /Ox /EHsc /GL /Fohelpers.obj /c helpers.cpp  ^
  
 ## Compile on Linux with g++
 
- g++ -fPIC -lm -shared histogram.cpp helpers.cpp meanhistogram.cpp ratiohistogram.cpp SQLiteExt.cpp RegistExt.cpp -o histograms.so
+ g++ -O3 -fPIC -lm -shared histogram.cpp helpers.cpp meanhistogram.cpp ratiohistogram.cpp SQLiteExt.cpp RegistExt.cpp -o histograms.so
 
 
 ## Loading the extension from the sqlite3 commandline
