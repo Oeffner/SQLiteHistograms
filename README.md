@@ -100,6 +100,9 @@ cl /Ox /EHsc /GL /Fohelpers.obj /c helpers.cpp  ^
 
  g++ -O3 -fPIC -lm -shared histogram.cpp helpers.cpp meanhistogram.cpp ratiohistogram.cpp SQLiteExt.cpp RegistExt.cpp -o histograms.so
 
+## Compile on macOS with clang++
+
+ clang++ -O3 -fPIC -lm -shared histogram.cpp helpers.cpp meanhistogram.cpp ratiohistogram.cpp SQLiteExt.cpp RegistExt.cpp -o histograms.dylib
 
 ## Loading the extension from the sqlite3 commandline
 
@@ -110,6 +113,10 @@ cl /Ox /EHsc /GL /Fohelpers.obj /c helpers.cpp  ^
 ### on Linux:
  
  sqlite> .load ./histograms.so
+ 
+### on macOS
+
+ sqlite> .load ./histograms.dylib
 
 ## Bugs and feedback
 Feel free to get in touch with me.
