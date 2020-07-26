@@ -120,3 +120,9 @@ cl /Ox /EHsc /GL /Fohelpers.obj /c helpers.cpp  ^
 
 ## Bugs and feedback
 Feel free to get in touch with me.
+
+## Acknowledgements
+This work would not have been possible without funding by the US National Institutes of Health (NIH).
+Thanks go to all contributors and users reporting bugs or fixes.
+
+
