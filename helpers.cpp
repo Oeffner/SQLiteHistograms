@@ -116,13 +116,15 @@ std::vector<histobin> CalcHistogram(std::vector< std::vector<double> > Yvals,
     double lower = binwidth * i + minbin;
     histo[i].binval = middle;
     histo[i].count = 0;
-    
-    for (unsigned j = 0; j < Yvals[0].size(); j++)
+    if (Yvals.size() > 0)
     {
-      if (Yvals[0][j] >= lower && Yvals[0][j] < upper)
+      for (unsigned j = 0; j < Yvals[0].size(); j++)
       {
-        histo[i].count++;
-        accumcount++;
+        if (Yvals[0][j] >= lower && Yvals[0][j] < upper)
+        {
+          histo[i].count++;
+          accumcount++;
+        }
       }
     }
     histo[i].accumcount = accumcount;

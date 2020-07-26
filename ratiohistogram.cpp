@@ -366,7 +366,7 @@ int ratiohistoFilter(
   pCur->count2 = pCur->ratiohistogram2[0].count;
   pCur->totalcount = pCur->ratiohistogram1[0].count + pCur->ratiohistogram2[0].count;
   if (pCur->totalcount > 0)
-    pCur->ratio = pCur->count1 / pCur->totalcount;
+    pCur->ratio = ((double)pCur->count1) / pCur->totalcount;
 
   pCur->isDesc = 0;
   pCur->iRowid = 1;
