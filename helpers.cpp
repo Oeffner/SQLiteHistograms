@@ -116,6 +116,8 @@ std::vector<histobin> CalcHistogram(std::vector< std::vector<double> > Yvals,
     double lower = binwidth * i + minbin;
     histo[i].binval = middle;
     histo[i].count = 0;
+    histo[i].accumcount = 0;
+    /*
     if (Yvals.size() > 0)
     {
       for (unsigned j = 0; j < Yvals[0].size(); j++)
@@ -127,7 +129,21 @@ std::vector<histobin> CalcHistogram(std::vector< std::vector<double> > Yvals,
         }
       }
     }
+    */
     histo[i].accumcount = accumcount;
+  }
+
+  if (Yvals.size() > 0)
+  {
+    for (unsigned j = 0; j < Yvals[0].size(); j++)
+    {
+      int ibin = (Yvals[0][j] - minbin) / binwidth;
+      if (ibin < 0 || ibin >(bins - 1))
+        continue;
+      histo[ibin].count++;
+      accumcount++;
+      histo[ibin].accumcount = accumcount;
+    }
   }
 
   return histo;
@@ -159,6 +175,7 @@ std::vector<interpolatebin> CalcInterpolations(std::vector< std::vector<double> 
   double binwidth = bindomain / bins;
   if (XYvals.size() < 1)
     return interpol;
+  /*
   for (unsigned i = 0; i < interpol.size(); i++)
   {
     double upper = binwidth * (i + 1) + minbin;
@@ -194,20 +211,79 @@ std::vector<interpolatebin> CalcInterpolations(std::vector< std::vector<double> 
     interpol[i].yval /= interpol[i].count;
     interpol[i].sigma = sqrt( ( shiftval[1][i]
       - (shiftval[0][i] * shiftval[0][i])/interpol[i].count)/ interpol[i].count);
-/* 
-Margin of Error (MOE) of a mean value is based on Z*sigma/sqrt(N) Z=1.96 corresponds to 95% confidence
-Z-Score Confidence Limit (%)
-3       99.73
-2.58    99
-2.33    98
-2.17    97
-2.05    96
-2.0     95.45
-1.96    95
-1.64    90
-*/
+ 
+    // Margin of Error (MOE) of a mean value is based on Z*sigma/sqrt(N) Z=1.96 corresponds to 95% confidence
+    // Z-Score Confidence Limit (%)
+    // 3       99.73
+    // 2.58    99
+    // 2.33    98
+    // 2.17    97
+    // 2.05    96
+    // 2.0     95.45
+    // 1.96    95
+    // 1.64    90
+
     interpol[i].sem = interpol[i].sigma/sqrt(interpol[i].count);
   }
+  */
+
+  for (unsigned i = 0; i < interpol.size(); i++)
+  {
+    double upper = binwidth * (i + 1) + minbin;
+    double middle = binwidth * (i + 0.5) + minbin;
+    double lower = binwidth * i + minbin;
+    interpol[i].xval = middle;
+    interpol[i].count = 0;
+    // first calculate shiftconst used for avoiding numerical instability
+    // by assigning it to the mean value of values in the bin
+    double shiftconst = 0.0;
+  }
+
+  for (unsigned j = 0; j < XYvals[0].size(); j++)
+  {
+    int ibin = (XYvals[0][j] - minbin) / binwidth;
+    if (ibin < 0 || ibin >(bins - 1))
+      continue;
+    interpol[ibin].count++;
+    shiftval[0][ibin] = shiftval[1][ibin] = 0.0;
+  }
+
+  for (unsigned j = 0; j < XYvals[0].size(); j++)
+  {
+    int ibin = (XYvals[0][j] - minbin) / binwidth;
+    if (ibin < 0 || ibin >(bins - 1))
+      continue;
+
+    double shiftconst = 0.0;
+    if (interpol[ibin].count)
+      shiftconst = XYvals[1][j]/interpol[ibin].count;
+
+    double shifted = XYvals[1][j] - shiftconst;
+    shiftval[0][ibin] += shifted; // avoid numerical instability close to zero
+    shiftval[1][ibin] += shifted * shifted;
+    interpol[ibin].yval += XYvals[1][j];
+  }
+
+  for (unsigned i = 0; i < interpol.size(); i++)
+  {
+    interpol[i].yval /= interpol[i].count;
+    interpol[i].sigma = sqrt((shiftval[1][i]
+      - (shiftval[0][i] * shiftval[0][i]) / interpol[i].count) / interpol[i].count);
+    /*
+    Margin of Error (MOE) of a mean value is based on Z*sigma/sqrt(N) Z=1.96 corresponds to 95% confidence
+    Z-Score Confidence Limit (%)
+    3       99.73
+    2.58    99
+    2.33    98
+    2.17    97
+    2.05    96
+    2.0     95.45
+    1.96    95
+    1.64    90
+    */
+    interpol[i].sem = interpol[i].sigma / sqrt(interpol[i].count);
+  }
+
   return interpol;
 }
 
