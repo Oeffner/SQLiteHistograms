@@ -117,19 +117,6 @@ std::vector<histobin> CalcHistogram(std::vector< std::vector<double> > Yvals,
     histo[i].binval = middle;
     histo[i].count = 0;
     histo[i].accumcount = 0;
-    /*
-    if (Yvals.size() > 0)
-    {
-      for (unsigned j = 0; j < Yvals[0].size(); j++)
-      {
-        if (Yvals[0][j] >= lower && Yvals[0][j] < upper)
-        {
-          histo[i].count++;
-          accumcount++;
-        }
-      }
-    }
-    */
     histo[i].accumcount = accumcount;
   }
 
@@ -175,57 +162,6 @@ std::vector<interpolatebin> CalcInterpolations(std::vector< std::vector<double> 
   double binwidth = bindomain / bins;
   if (XYvals.size() < 1)
     return interpol;
-  /*
-  for (unsigned i = 0; i < interpol.size(); i++)
-  {
-    double upper = binwidth * (i + 1) + minbin;
-    double middle = binwidth * (i + 0.5) + minbin;
-    double lower = binwidth * i + minbin;
-    interpol[i].xval = middle;
-    interpol[i].count = 0;
-    // first calculate shiftconst used for avoiding numerical instability
-    // by assigning it to the mean value of values in the bin
-    double shiftconst = 0;
-    for (unsigned j = 0; j < XYvals[0].size(); j++)
-    {
-      if (XYvals[0][j] >= lower && XYvals[0][j] < upper)
-      {
-        shiftconst = XYvals[1][j];
-        interpol[i].count++;
-      }
-    }
-    if (interpol[i].count)
-      shiftconst /= interpol[i].count;
-
-    shiftval[0][i] = shiftval[1][i] = 0.0;
-    for (unsigned j = 0; j < XYvals[0].size(); j++)
-    {
-      if (XYvals[0][j] >= lower && XYvals[0][j] < upper)
-      {
-        double shifted = XYvals[1][j] - shiftconst;
-        shiftval[0][i] += shifted; // avoid numerical instability close to zero
-        shiftval[1][i] += shifted*shifted;
-        interpol[i].yval += XYvals[1][j];
-      }
-    }
-    interpol[i].yval /= interpol[i].count;
-    interpol[i].sigma = sqrt( ( shiftval[1][i]
-      - (shiftval[0][i] * shiftval[0][i])/interpol[i].count)/ interpol[i].count);
- 
-    // Margin of Error (MOE) of a mean value is based on Z*sigma/sqrt(N) Z=1.96 corresponds to 95% confidence
-    // Z-Score Confidence Limit (%)
-    // 3       99.73
-    // 2.58    99
-    // 2.33    98
-    // 2.17    97
-    // 2.05    96
-    // 2.0     95.45
-    // 1.96    95
-    // 1.64    90
-
-    interpol[i].sem = interpol[i].sigma/sqrt(interpol[i].count);
-  }
-  */
 
   for (unsigned i = 0; i < interpol.size(); i++)
   {
@@ -234,9 +170,6 @@ std::vector<interpolatebin> CalcInterpolations(std::vector< std::vector<double> 
     double lower = binwidth * i + minbin;
     interpol[i].xval = middle;
     interpol[i].count = 0;
-    // first calculate shiftconst used for avoiding numerical instability
-    // by assigning it to the mean value of values in the bin
-    double shiftconst = 0.0;
   }
 
   for (unsigned j = 0; j < XYvals[0].size(); j++)
@@ -253,7 +186,9 @@ std::vector<interpolatebin> CalcInterpolations(std::vector< std::vector<double> 
     int ibin = (XYvals[0][j] - minbin) / binwidth;
     if (ibin < 0 || ibin >(bins - 1))
       continue;
-
+    // First calculate shiftconst used for avoiding numerical instability of sigma
+    // by assigning it to the mean value of values in the bin.
+    // See https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Algorithm_II
     double shiftconst = 0.0;
     if (interpol[ibin].count)
       shiftconst = XYvals[1][j]/interpol[ibin].count;
